@@ -17,7 +17,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-semibold tracking-tight">Catering OS</p>
-              <p className="text-[11px] text-muted-foreground">Menu · Recipe · Ingredient</p>
+              <p className="text-[11px] text-muted-foreground">Menü · Rezept · Zutat</p>
             </div>
             <button
               type="button"
@@ -25,7 +25,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 'inline-flex h-10 w-10 items-center justify-center rounded-lg border bg-card text-foreground transition hover:border-border hover:bg-accent',
               )}
               onClick={() => setMobileOpen(true)}
-              aria-label="Open navigation"
+              aria-label="Navigation öffnen"
             >
               <Menu className="h-5 w-5" />
             </button>

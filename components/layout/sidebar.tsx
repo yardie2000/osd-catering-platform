@@ -27,31 +27,31 @@ type NavEntry  = NavLeaf | NavGroup
 const nav: NavEntry[] = [
   { label: 'Dashboard', href: '/', icon: LayoutDashboard },
   {
-    label: 'Core Workflow',
+    label: 'Kernprozess',
     children: [
-      { label: 'Menus',        href: '/master-data/menus',        icon: UtensilsCrossed },
-      { label: 'Recipes',      href: '/master-data/recipes',      icon: BookOpen },
-      { label: 'Ingredients',  href: '/master-data/ingredients',  icon: Carrot },
-      { label: 'Units',        href: '/master-data/units',        icon: Ruler },
+      { label: 'Menüs',       href: '/master-data/menus',        icon: UtensilsCrossed },
+      { label: 'Rezepte',     href: '/master-data/recipes',      icon: BookOpen },
+      { label: 'Zutaten',     href: '/master-data/ingredients',  icon: Carrot },
+      { label: 'Einheiten',   href: '/master-data/units',        icon: Ruler },
     ],
   },
   {
-    label: 'Support',
+    label: 'Datenpflege',
     children: [
-      { label: 'Import Center', href: '/operations/imports',      icon: Upload },
-      { label: 'Validation',    href: '/operations/validation',   icon: ShieldCheck },
-      { label: 'Data Quality',  href: '/operations/data-quality', icon: BarChart3 },
+      { label: 'Importcenter',  href: '/operations/imports',      icon: Upload },
+      { label: 'Validierung',   href: '/operations/validation',   icon: ShieldCheck },
+      { label: 'Datenqualität', href: '/operations/data-quality', icon: BarChart3 },
     ],
   },
   {
-    label: 'Operations',
+    label: 'Betrieb',
     children: [
-      { label: 'Production Batches', href: '/operations/batches',    icon: ClipboardList },
-      { label: 'Production Output',  href: '/operations/production',  icon: ChefHat },
-      { label: 'Purchasing Output',  href: '/operations/purchasing',  icon: ShoppingCart },
+      { label: 'Produktionsläufe',  href: '/operations/batches',     icon: ClipboardList },
+      { label: 'Produktionsausgabe', href: '/operations/production',  icon: ChefHat },
+      { label: 'Einkaufsausgabe',    href: '/operations/purchasing',  icon: ShoppingCart },
     ],
   },
-  { label: 'Settings', href: '/settings', icon: Settings },
+  { label: 'Einstellungen', href: '/settings', icon: Settings },
 ]
 
 interface NavItemProps {
@@ -102,14 +102,14 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             </div>
             <div>
               <p className="text-sm font-semibold leading-none">Catering OS</p>
-              <p className="text-[10px] text-muted-foreground">Menu · Recipe · Ingredient</p>
+              <p className="text-[10px] text-muted-foreground">Menü · Rezept · Zutat</p>
             </div>
           </div>
           <button
             type="button"
             className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition hover:border-primary hover:text-foreground md:hidden"
             onClick={onClose}
-            aria-label="Close navigation"
+            aria-label="Navigation schließen"
           >
             <X className="h-4 w-4" />
           </button>

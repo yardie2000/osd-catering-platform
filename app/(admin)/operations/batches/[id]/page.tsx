@@ -16,6 +16,14 @@ import { ArrowLeft, Plus, Trash2, ChefHat, ShoppingCart } from 'lucide-react'
 import { toast } from 'sonner'
 import { getErrorMessage } from '@/lib/errors'
 
+const STATUS_LABELS: Record<string, string> = {
+  planned: 'Geplant',
+  in_progress: 'In Bearbeitung',
+  done: 'Abgeschlossen',
+  archived: 'Archiviert',
+}
+const statusLabel = (s: string) => STATUS_LABELS[s] ?? s
+
 export default function BatchDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { data: batch, isLoading } = useBatch(id)
@@ -30,7 +38,7 @@ export default function BatchDetailPage() {
   async function handleAdd() {
     if (!newMenu) { toast.error('Menü wählen'); return }
     const pax = Number(newPax)
-    if (!Number.isFinite(pax) || pax <= 0) { toast.error('Pax > 0 eingeben'); return }
+    if (!Number.isFinite(pax) || pax <= 0) { toast.error('Personenzahl > 0 eingeben'); return }
     try {
       await addItem.mutateAsync({ menuId: newMenu, pax })
       toast.success('Menü hinzugefügt')
@@ -44,13 +52,13 @@ export default function BatchDetailPage() {
     catch (e) { toast.error(getErrorMessage(e)) }
   }
   async function handleRemove(itemId: string, name: string) {
-    if (!confirm(`„${name}" aus dem Batch entfernen?`)) return
+    if (!confirm(`„${name}" aus dem Produktionslauf entfernen?`)) return
     try { await removeItem.mutateAsync(itemId); toast.success('Entfernt') }
     catch (e) { toast.error(getErrorMessage(e)) }
   }
 
   if (isLoading) return <div className="flex items-center justify-center h-full text-muted-foreground">Laden…</div>
-  if (!batch) return <div className="flex items-center justify-center h-full text-muted-foreground">Batch nicht gefunden.</div>
+  if (!batch) return <div className="flex items-center justify-center h-full text-muted-foreground">Produktionslauf nicht gefunden.</div>
 
   const items = batch.kitchen_batch_items ?? []
   const totalPax = items.reduce((s, it) => s + (it.pax_count || 0), 0)
@@ -59,15 +67,15 @@ export default function BatchDetailPage() {
     <div className="flex flex-col h-full">
       <PageHeader
         title={batch.name}
-        description={`${items.length} Menü(s) · ${totalPax} Pax gesamt`}
+        description={`${items.length} Menü(s) · ${totalPax} Personen gesamt`}
         actions={
           <div className="flex gap-2">
             <Link href="/operations/batches"><Button variant="outline" size="sm"><ArrowLeft className="h-4 w-4" /> Zurück</Button></Link>
             <Button asChild size="sm" variant="secondary">
-              <Link href={`/operations/production?batch=${batch.id}`}><ChefHat className="h-4 w-4" /> Production Output</Link>
+              <Link href={`/operations/production?batch=${batch.id}`}><ChefHat className="h-4 w-4" /> Produktionsausgabe</Link>
             </Button>
             <Button asChild size="sm">
-              <Link href={`/operations/purchasing?batch=${batch.id}`}><ShoppingCart className="h-4 w-4" /> Purchasing Output</Link>
+              <Link href={`/operations/purchasing?batch=${batch.id}`}><ShoppingCart className="h-4 w-4" /> Einkaufsausgabe</Link>
             </Button>
           </div>
         }
@@ -75,7 +83,7 @@ export default function BatchDetailPage() {
 
       <div className="p-8 space-y-6">
         <div className="flex flex-wrap items-center gap-3">
-          <Badge variant="outline">{batch.status}</Badge>
+          <Badge variant="outline">{statusLabel(batch.status)}</Badge>
           {batch.production_date && <Badge variant="secondary">Produktion: {new Date(batch.production_date).toLocaleDateString('de-DE')}</Badge>}
           {(batch.start_date || batch.end_date) && (
             <Badge variant="outline">
@@ -88,7 +96,7 @@ export default function BatchDetailPage() {
         )}
 
         <Card>
-          <CardHeader><CardTitle className="text-sm">Menüs &amp; Pax (einmalige Eingabe)</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-sm">Menüs &amp; Personenzahl (einmalige Eingabe)</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             {/* add row */}
             <div className="flex flex-wrap items-end gap-3">
@@ -102,7 +110,7 @@ export default function BatchDetailPage() {
                 </Select>
               </div>
               <div className="w-28">
-                <label className="text-xs text-muted-foreground">Pax</label>
+                <label className="text-xs text-muted-foreground">Personen</label>
                 <Input type="number" min={1} step={1} inputMode="numeric" placeholder="z. B. 250"
                   value={newPax} onChange={(e) => setNewPax(e.target.value)} className="mt-1" />
               </div>
@@ -113,7 +121,7 @@ export default function BatchDetailPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Menü</TableHead>
-                  <TableHead className="w-40">Pax</TableHead>
+                  <TableHead className="w-40">Personen</TableHead>
                   <TableHead className="w-12" />
                 </TableRow>
               </TableHeader>
@@ -142,8 +150,8 @@ export default function BatchDetailPage() {
               </TableBody>
             </Table>
             <p className="text-xs text-muted-foreground">
-              Diese Eingabe erfolgt genau einmal. Production- und Purchasing-Output werden automatisch
-              aus diesen Menüs + Pax berechnet (gemeinsame Datenbasis).
+              Diese Eingabe erfolgt genau einmal. Produktions- und Einkaufsausgabe werden automatisch
+              aus diesen Menüs + Personenzahl berechnet (gemeinsame Datenbasis).
             </p>
           </CardContent>
         </Card>

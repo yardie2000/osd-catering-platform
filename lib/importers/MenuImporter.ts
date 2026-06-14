@@ -1,5 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js'
-import type { Database, Menu, MenuInsert } from '@/types'
+import type { Database, MenuInsert } from '@/types'
 import { ImportLogger } from './ImportLogger'
 import { validateRows, menuRowSchemaV3 } from './ValidationEngine'
 

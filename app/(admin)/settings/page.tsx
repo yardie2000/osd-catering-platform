@@ -11,7 +11,7 @@ async function checkConnection(): Promise<{ status: ConnectionStatus; detail: st
   const placeholder = 'https://your-project.supabase.co'
 
   if (!url || url === placeholder) {
-    return { status: 'not_configured', detail: 'ENV vars not set' }
+    return { status: 'not_configured', detail: 'ENV-Variablen nicht gesetzt' }
   }
 
   try {
@@ -20,9 +20,9 @@ async function checkConnection(): Promise<{ status: ConnectionStatus; detail: st
       .from('units')
       .select('id', { head: true, count: 'exact' })
     if (error) return { status: 'error', detail: error.message }
-    return { status: 'ok', detail: 'Connected — schema V4.2 active' }
+    return { status: 'ok', detail: 'Verbunden — Schema V4.2 aktiv' }
   } catch (err) {
-    return { status: 'error', detail: err instanceof Error ? err.message : 'Unknown error' }
+    return { status: 'error', detail: err instanceof Error ? err.message : 'Unbekannter Fehler' }
   }
 }
 
@@ -39,17 +39,17 @@ export default async function SettingsPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <PageHeader title="Settings" description="Platform configuration, schema status and V4.2 roadmap" />
+      <PageHeader title="Einstellungen" description="Plattformkonfiguration, Schema-Status und V4.2-Roadmap" />
       <div className="p-8 space-y-6 max-w-2xl">
 
         {/* Connection status */}
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Supabase Connection</CardTitle>
+              <CardTitle className="text-base">Supabase-Verbindung</CardTitle>
               <Badge variant={statusVariant}>
-                {connection.status === 'ok'             ? 'Connected'      :
-                 connection.status === 'not_configured' ? 'Not Configured' : 'Error'}
+                {connection.status === 'ok'             ? 'Verbunden'         :
+                 connection.status === 'not_configured' ? 'Nicht konfiguriert' : 'Fehler'}
               </Badge>
             </div>
           </CardHeader>
@@ -61,11 +61,11 @@ export default async function SettingsPage() {
             <Separator />
             <div className="flex justify-between">
               <span className="text-muted-foreground font-mono text-xs">NEXT_PUBLIC_SUPABASE_ANON_KEY</span>
-              <Badge variant={hasAnonKey ? 'success' : 'error'}>{hasAnonKey ? 'Set' : 'Missing'}</Badge>
+              <Badge variant={hasAnonKey ? 'success' : 'error'}>{hasAnonKey ? 'Gesetzt' : 'Fehlt'}</Badge>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground font-mono text-xs">SUPABASE_SERVICE_ROLE_KEY</span>
-              <Badge variant={hasServiceKey ? 'success' : 'error'}>{hasServiceKey ? 'Set' : 'Missing'}</Badge>
+              <Badge variant={hasServiceKey ? 'success' : 'error'}>{hasServiceKey ? 'Gesetzt' : 'Fehlt'}</Badge>
             </div>
             {connection.status !== 'not_configured' && (
               <>
@@ -80,30 +80,30 @@ export default async function SettingsPage() {
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Schema Status</CardTitle>
+              <CardTitle className="text-base">Schema-Status</CardTitle>
               <Badge variant="success">V4.2</Badge>
             </div>
           </CardHeader>
           <CardContent className="text-sm space-y-3 text-muted-foreground">
             <p className="text-xs">
-              Master data, recipes and menus are live. In V4.2 the menu&nbsp;↔&nbsp;recipe
-              link is unified: every menu line can be linked to a recipe directly in the UI,
-              which is the basis for the upcoming production and purchasing modules.
+              Stammdaten, Rezepte und Menüs sind aktiv. In V4.2 ist die Menü-↔-Rezept-Verknüpfung
+              vereinheitlicht: Jede Menüzeile kann direkt in der Oberfläche mit einem Rezept verknüpft
+              werden — die Grundlage für die kommenden Produktions- und Einkaufsmodule.
             </p>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-xs">
-              <span className="text-foreground">menus.menu_name</span>        <span>✓ active</span>
-              <span className="text-foreground">menus.menu_description</span> <span>✓ active</span>
-              <span className="text-foreground">menu_items</span>             <span>✓ active (replaces menu_recipes)</span>
-              <span className="text-foreground">menu_items.recipe_id</span>   <span>✓ active (menu ↔ recipe link)</span>
-              <span className="text-foreground">recipes / recipe_ingredients</span><span>✓ active</span>
-              <span className="text-foreground">supplier_products</span>      <span>✓ active</span>
-              <span className="text-foreground">kitchen_batches</span>        <span>✓ active (V4.1 — single planning entry)</span>
-              <span className="text-foreground">kitchen_batch_items</span>   <span>✓ active (menu + pax)</span>
-              <span className="text-foreground">production_batches</span>     <span>— legacy (pre-V4.1)</span>
-              <span className="text-foreground">purchasing_lists</span>       <span>— legacy (pre-V4.1)</span>
-              <span className="text-foreground">menu_recipes</span>           <span>— dropped in V3</span>
-              <span className="text-foreground">menus.service_note</span>     <span>— dropped in V3</span>
-              <span className="text-foreground">menus.menu_type</span>        <span>— dropped in V3</span>
+              <span className="text-foreground">menus.menu_name</span>        <span>✓ aktiv</span>
+              <span className="text-foreground">menus.menu_description</span> <span>✓ aktiv</span>
+              <span className="text-foreground">menu_items</span>             <span>✓ aktiv (ersetzt menu_recipes)</span>
+              <span className="text-foreground">menu_items.recipe_id</span>   <span>✓ aktiv (Menü-↔-Rezept-Verknüpfung)</span>
+              <span className="text-foreground">recipes / recipe_ingredients</span><span>✓ aktiv</span>
+              <span className="text-foreground">supplier_products</span>      <span>✓ aktiv</span>
+              <span className="text-foreground">kitchen_batches</span>        <span>✓ aktiv (V4.1 — zentrale Planungseingabe)</span>
+              <span className="text-foreground">kitchen_batch_items</span>   <span>✓ aktiv (Menü + Personenzahl)</span>
+              <span className="text-foreground">production_batches</span>     <span>— Altbestand (vor V4.1)</span>
+              <span className="text-foreground">purchasing_lists</span>       <span>— Altbestand (vor V4.1)</span>
+              <span className="text-foreground">menu_recipes</span>           <span>— in V3 entfernt</span>
+              <span className="text-foreground">menus.service_note</span>     <span>— in V3 entfernt</span>
+              <span className="text-foreground">menus.menu_type</span>        <span>— in V3 entfernt</span>
             </div>
           </CardContent>
         </Card>
@@ -112,19 +112,19 @@ export default async function SettingsPage() {
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Operations Workflow (V4.1)</CardTitle>
-              <Badge variant="success">Live</Badge>
+              <CardTitle className="text-base">Betriebsablauf (V4.1)</CardTitle>
+              <Badge variant="success">Aktiv</Badge>
             </div>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground space-y-2">
             <p className="text-xs">
-              One planning entry, two derived outputs. The kitchen lead enters menus + pax
-              <span className="text-foreground"> once</span> in a <span className="font-mono text-foreground">/operations/batches</span>
-              {' '}Production Batch (events are managed in Mouseclick). Production and Purchasing are no longer
-              separate inputs — both are computed from the same batch via a shared aggregation service, so they
-              can never diverge.
+              Eine Planungseingabe, zwei abgeleitete Ausgaben. Die Küchenleitung erfasst Menüs + Personenzahl
+              <span className="text-foreground"> einmalig</span> in einem <span className="font-mono text-foreground">/operations/batches</span>
+              {' '}Produktionslauf (Events werden in Mouseclick verwaltet). Produktion und Einkauf sind keine
+              getrennten Eingaben mehr — beide werden über einen gemeinsamen Aggregationsdienst aus demselben
+              Produktionslauf berechnet und können daher nie auseinanderlaufen.
             </p>
-            <p className="text-xs text-foreground">Menüs + Pax → Production Batch → Rezeptaggregation → Production Output &amp; Purchasing Output</p>
+            <p className="text-xs text-foreground">Menüs + Personenzahl → Produktionslauf → Rezeptaggregation → Produktionsausgabe &amp; Einkaufsausgabe</p>
           </CardContent>
         </Card>
 
@@ -132,17 +132,17 @@ export default async function SettingsPage() {
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Production Output</CardTitle>
-              <Badge variant="success">Live</Badge>
+              <CardTitle className="text-base">Produktionsausgabe</CardTitle>
+              <Badge variant="success">Aktiv</Badge>
             </div>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground space-y-2">
-            <p className="text-xs"><span className="font-mono text-foreground">/operations/production</span> — derived from the selected batch.</p>
+            <p className="text-xs"><span className="font-mono text-foreground">/operations/production</span> — abgeleitet aus dem gewählten Produktionslauf.</p>
             <ul className="list-disc list-inside space-y-1 ml-2">
-              <li>✓ Production batch per recipe (recipes used across menus are merged + summed)</li>
-              <li>✓ Scaling to guest count (pax/portions → batch factor; yield / production_notes / default basis)</li>
-              <li>✓ Per-batch prep ingredient list (scaled)</li>
-              <li>✓ Kitchen Production Sheet (print) + CSV</li>
+              <li>✓ Produktionsmenge je Rezept (über Menüs hinweg verwendete Rezepte werden zusammengeführt + summiert)</li>
+              <li>✓ Skalierung auf Personenzahl (Personen/Portionen → Lauffaktor; Ausbeute / production_notes / Standardbasis)</li>
+              <li>✓ Zutatenliste je Lauf (skaliert)</li>
+              <li>✓ Küchen-Produktionsblatt (Druck) + CSV</li>
             </ul>
           </CardContent>
         </Card>
@@ -151,31 +151,31 @@ export default async function SettingsPage() {
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Purchasing Output</CardTitle>
-              <Badge variant="success">Live</Badge>
+              <CardTitle className="text-base">Einkaufsausgabe</CardTitle>
+              <Badge variant="success">Aktiv</Badge>
             </div>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground space-y-2">
-            <p className="text-xs"><span className="font-mono text-foreground">/operations/purchasing</span> — derived from the same batch (no second entry).</p>
+            <p className="text-xs"><span className="font-mono text-foreground">/operations/purchasing</span> — abgeleitet aus demselben Produktionslauf (keine zweite Eingabe).</p>
             <ul className="list-disc list-inside space-y-1 ml-2">
-              <li>✓ Ingredient aggregation across all menus/recipes of the batch</li>
-              <li>✓ Grouped by category; unit merging (kg→g, l→ml) so each ingredient is one line</li>
-              <li>✓ Purchasing Sheet (print) + CSV</li>
-              <li>◷ Cost estimate &amp; supplier grouping — ready, but needs supplier_products data (currently empty)</li>
+              <li>✓ Zutatenaggregation über alle Menüs/Rezepte des Laufs</li>
+              <li>✓ Nach Kategorie gruppiert; Einheitenzusammenführung (kg→g, l→ml), sodass jede Zutat eine Zeile bildet</li>
+              <li>✓ Einkaufsblatt (Druck) + CSV</li>
+              <li>◷ Kostenschätzung &amp; Lieferantengruppierung — bereit, benötigt aber supplier_products-Daten (derzeit leer)</li>
             </ul>
           </CardContent>
         </Card>
 
         {/* Further scaffolding */}
         <Card>
-          <CardHeader><CardTitle className="text-base">Further Scaffolding</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">Weitere Module in Vorbereitung</CardTitle></CardHeader>
           <CardContent className="text-sm text-muted-foreground space-y-2">
-            <p>Additional areas with tables/types in place, to be activated after the modules above:</p>
+            <p>Weitere Bereiche mit bereits angelegten Tabellen/Typen, die nach den obigen Modulen aktiviert werden:</p>
             <ul className="list-disc list-inside space-y-1 ml-2">
-              <li>Events &amp; Event Menus</li>
-              <li>Supplier Management</li>
-              <li>Food Cost Calculation</li>
-              <li>AI Menu Recognition / Recipe Matching / Ingredient Mapping</li>
+              <li>Events &amp; Event-Menüs</li>
+              <li>Lieferantenverwaltung</li>
+              <li>Wareneinsatzkalkulation</li>
+              <li>KI-Menüerkennung / Rezeptzuordnung / Zutaten-Mapping</li>
             </ul>
           </CardContent>
         </Card>

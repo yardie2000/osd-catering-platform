@@ -3,22 +3,20 @@
 import { useState, useRef } from 'react'
 import { useImportJobs, useImportLogs } from '@/hooks/use-imports'
 import { PageHeader } from '@/components/layout/page-header'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Separator } from '@/components/ui/separator'
-import { Upload, FileUp, CheckCircle, XCircle, AlertTriangle, Clock, RefreshCw } from 'lucide-react'
+import { Upload, FileUp, CheckCircle, XCircle, Clock, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { getErrorMessage } from '@/lib/errors'
 import { formatDate } from '@/lib/utils'
 import type { ImportJob } from '@/types'
 
 function StatusBadge({ status }: { status: string }) {
-  if (status === 'completed') return <Badge variant="success"><CheckCircle className="h-3 w-3 mr-1" />Completed</Badge>
-  if (status === 'failed') return <Badge variant="error"><XCircle className="h-3 w-3 mr-1" />Failed</Badge>
-  if (status === 'dry_run') return <Badge variant="warning"><Clock className="h-3 w-3 mr-1" />Dry Run</Badge>
-  if (status === 'running') return <Badge variant="secondary"><RefreshCw className="h-3 w-3 mr-1 animate-spin" />Running</Badge>
+  if (status === 'completed') return <Badge variant="success"><CheckCircle className="h-3 w-3 mr-1" />Abgeschlossen</Badge>
+  if (status === 'failed') return <Badge variant="error"><XCircle className="h-3 w-3 mr-1" />Fehlgeschlagen</Badge>
+  if (status === 'dry_run') return <Badge variant="warning"><Clock className="h-3 w-3 mr-1" />Testlauf</Badge>
+  if (status === 'running') return <Badge variant="secondary"><RefreshCw className="h-3 w-3 mr-1 animate-spin" />Läuft</Badge>
   return <Badge variant="outline">{status}</Badge>
 }
 
@@ -27,7 +25,7 @@ function JobLogs({ jobId }: { jobId: string }) {
   return (
     <div className="space-y-1 max-h-64 overflow-y-auto">
       {logs.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No log entries.</p>
+        <p className="text-sm text-muted-foreground">Keine Logeinträge.</p>
       ) : (
         logs.map((log) => (
           <div key={log.id} className={`text-xs flex gap-2 p-1.5 rounded ${
@@ -65,12 +63,12 @@ export default function ImportsPage() {
       })
       const result = await response.json()
 
-      if (!response.ok) throw new Error(result.error ?? 'Import failed')
+      if (!response.ok) throw new Error(result.error ?? 'Import fehlgeschlagen')
 
       toast.success(
         dry
-          ? `Dry run complete — ${result.totalInserted} would be inserted`
-          : `Import complete — ${result.totalInserted} inserted, ${result.totalUpdated} updated`
+          ? `Testlauf abgeschlossen — ${result.totalInserted} würden eingefügt`
+          : `Import abgeschlossen — ${result.totalInserted} eingefügt, ${result.totalUpdated} aktualisiert`
       )
       refetch()
     } catch (e) {
@@ -90,19 +88,19 @@ export default function ImportsPage() {
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title="Import Center"
-        description="Upload Excel workbooks to import units, ingredients, recipes, and menus"
+        title="Importcenter"
+        description="Excel-Arbeitsmappen hochladen, um Einheiten, Zutaten, Rezepte und Menüs zu importieren"
       />
       <div className="p-8 space-y-6">
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <FileUp className="h-4 w-4" /> Upload Excel Workbook
+              <FileUp className="h-4 w-4" /> Excel-Arbeitsmappe hochladen
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              The workbook must contain sheets named: <code className="text-foreground bg-muted px-1 rounded">units</code>, <code className="text-foreground bg-muted px-1 rounded">ingredients</code>, <code className="text-foreground bg-muted px-1 rounded">recipes</code>, <code className="text-foreground bg-muted px-1 rounded">recipe_ingredients</code>, and optionally <code className="text-foreground bg-muted px-1 rounded">menus</code>.
+              Die Arbeitsmappe muss Tabellenblätter mit folgenden Namen enthalten: <code className="text-foreground bg-muted px-1 rounded">units</code>, <code className="text-foreground bg-muted px-1 rounded">ingredients</code>, <code className="text-foreground bg-muted px-1 rounded">recipes</code>, <code className="text-foreground bg-muted px-1 rounded">recipe_ingredients</code> und optional <code className="text-foreground bg-muted px-1 rounded">menus</code>.
             </p>
             <div className="flex items-center gap-3">
               <label className="flex items-center gap-2 text-sm cursor-pointer">
@@ -112,7 +110,7 @@ export default function ImportsPage() {
                   onChange={(e) => setDryRun(e.target.checked)}
                   className="rounded"
                 />
-                Dry Run (preview only, no changes to database)
+                Testlauf (nur Vorschau, keine Änderungen an der Datenbank)
               </label>
             </div>
             <div
@@ -120,8 +118,8 @@ export default function ImportsPage() {
               onClick={() => fileRef.current?.click()}
             >
               <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-              <p className="text-sm font-medium">Click to upload or drag & drop</p>
-              <p className="text-xs text-muted-foreground mt-1">.xlsx files only</p>
+              <p className="text-sm font-medium">Zum Hochladen klicken oder per Drag & Drop ablegen</p>
+              <p className="text-xs text-muted-foreground mt-1">Nur .xlsx-Dateien</p>
               <input
                 ref={fileRef}
                 type="file"
@@ -133,7 +131,7 @@ export default function ImportsPage() {
             {uploading && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <RefreshCw className="h-4 w-4 animate-spin" />
-                {dryRun ? 'Running dry run…' : 'Importing…'}
+                {dryRun ? 'Testlauf läuft…' : 'Import läuft…'}
               </div>
             )}
           </CardContent>
@@ -142,11 +140,11 @@ export default function ImportsPage() {
         <div className="grid gap-6 lg:grid-cols-5">
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle className="text-base">Import History</CardTitle>
+              <CardTitle className="text-base">Importverlauf</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               {jobs.length === 0 ? (
-                <p className="text-sm text-muted-foreground p-4">No imports yet.</p>
+                <p className="text-sm text-muted-foreground p-4">Noch keine Importe.</p>
               ) : (
                 <div className="divide-y">
                   {jobs.map((job) => (
@@ -186,10 +184,10 @@ export default function ImportsPage() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-4 gap-3 text-center">
                   {[
-                    { label: 'Total', value: selectedJob.total_rows },
-                    { label: 'Inserted', value: selectedJob.inserted, color: 'text-emerald-400' },
-                    { label: 'Updated', value: selectedJob.updated, color: 'text-blue-400' },
-                    { label: 'Errors', value: selectedJob.errors, color: 'text-red-400' },
+                    { label: 'Gesamt', value: selectedJob.total_rows },
+                    { label: 'Eingefügt', value: selectedJob.inserted, color: 'text-emerald-400' },
+                    { label: 'Aktualisiert', value: selectedJob.updated, color: 'text-blue-400' },
+                    { label: 'Fehler', value: selectedJob.errors, color: 'text-red-400' },
                   ].map(({ label, value, color }) => (
                     <div key={label} className="rounded-md bg-muted p-3">
                       <p className={`text-xl font-bold ${color ?? ''}`}>{value}</p>
@@ -199,7 +197,7 @@ export default function ImportsPage() {
                 </div>
                 <Separator />
                 <div>
-                  <p className="text-sm font-medium mb-2">Log</p>
+                  <p className="text-sm font-medium mb-2">Protokoll</p>
                   <JobLogs jobId={selectedJob.id} />
                 </div>
               </CardContent>

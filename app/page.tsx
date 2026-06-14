@@ -8,7 +8,7 @@ import { useImportJobs } from '@/hooks/use-imports'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { PageHeader } from '@/components/layout/page-header'
-import { Ruler, Carrot, BookOpen, UtensilsCrossed, Upload, CheckCircle, AlertCircle, Clock } from 'lucide-react'
+import { Ruler, Carrot, BookOpen, UtensilsCrossed, Upload, CheckCircle, Clock } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import Link from 'next/link'
 
@@ -41,10 +41,10 @@ function StatCard({
 }
 
 function importStatusBadge(status: string) {
-  if (status === 'completed') return <Badge variant="success">Completed</Badge>
-  if (status === 'failed') return <Badge variant="error">Failed</Badge>
-  if (status === 'dry_run') return <Badge variant="warning">Dry Run</Badge>
-  if (status === 'running') return <Badge variant="secondary">Running</Badge>
+  if (status === 'completed') return <Badge variant="success">Abgeschlossen</Badge>
+  if (status === 'failed') return <Badge variant="error">Fehlgeschlagen</Badge>
+  if (status === 'dry_run') return <Badge variant="warning">Testlauf</Badge>
+  if (status === 'running') return <Badge variant="secondary">Läuft</Badge>
   return <Badge variant="outline">{status}</Badge>
 }
 
@@ -61,15 +61,15 @@ export default function DashboardPage() {
     <div className="flex flex-col">
       <PageHeader
         title="Dashboard"
-        description="OSD Catering Operations Platform — Recipe & Production Management"
+        description="OSD Catering Operations Plattform — Rezept- & Produktionsverwaltung"
       />
 
       <div className="p-8 space-y-8">
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-          <StatCard title="Units" value={units?.length} icon={Ruler} href="/master-data/units" loading={loadingUnits} />
-          <StatCard title="Ingredients" value={ingredients?.length} icon={Carrot} href="/master-data/ingredients" loading={loadingIngredients} />
-          <StatCard title="Recipes" value={recipes?.length} icon={BookOpen} href="/master-data/recipes" loading={loadingRecipes} />
-          <StatCard title="Menus" value={menus?.length} icon={UtensilsCrossed} href="/master-data/menus" loading={loadingMenus} />
+          <StatCard title="Einheiten" value={units?.length} icon={Ruler} href="/master-data/units" loading={loadingUnits} />
+          <StatCard title="Zutaten" value={ingredients?.length} icon={Carrot} href="/master-data/ingredients" loading={loadingIngredients} />
+          <StatCard title="Rezepte" value={recipes?.length} icon={BookOpen} href="/master-data/recipes" loading={loadingRecipes} />
+          <StatCard title="Menüs" value={menus?.length} icon={UtensilsCrossed} href="/master-data/menus" loading={loadingMenus} />
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
@@ -77,15 +77,15 @@ export default function DashboardPage() {
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <Upload className="h-4 w-4" />
-                Recent Imports
+                Letzte Importe
               </CardTitle>
             </CardHeader>
             <CardContent>
               {recentJobs.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-4 text-center">
-                  No imports yet.{' '}
+                  Noch keine Importe.{' '}
                   <Link href="/operations/imports" className="text-primary hover:underline">
-                    Start an import
+                    Import starten
                   </Link>
                 </p>
               ) : (
@@ -111,15 +111,15 @@ export default function DashboardPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">System Status</CardTitle>
+              <CardTitle className="text-base">Systemstatus</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {[
-                { label: 'Database', status: 'connected', icon: CheckCircle, color: 'text-emerald-400' },
-                { label: 'Recipe Engine', status: 'ready', icon: CheckCircle, color: 'text-emerald-400' },
-                { label: 'Import Engine', status: 'ready', icon: CheckCircle, color: 'text-emerald-400' },
-                { label: 'Events Module', status: 'coming soon', icon: Clock, color: 'text-amber-400' },
-                { label: 'Purchasing Module', status: 'coming soon', icon: Clock, color: 'text-amber-400' },
+                { label: 'Datenbank', status: 'verbunden', icon: CheckCircle, color: 'text-emerald-400' },
+                { label: 'Rezept-Engine', status: 'bereit', icon: CheckCircle, color: 'text-emerald-400' },
+                { label: 'Import-Engine', status: 'bereit', icon: CheckCircle, color: 'text-emerald-400' },
+                { label: 'Events-Modul', status: 'in Kürze', icon: Clock, color: 'text-amber-400' },
+                { label: 'Einkaufs-Modul', status: 'in Kürze', icon: Clock, color: 'text-amber-400' },
               ].map(({ label, status, icon: Icon, color }) => (
                 <div key={label} className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">{label}</span>

@@ -34,8 +34,8 @@ export function MenuRecipePicker({
   onOpenChange,
   onSelect,
   selectedRecipeId,
-  title = 'Link a recipe',
-  description = 'Search by recipe name or code, then tap to link.',
+  title = 'Rezept verknüpfen',
+  description = 'Nach Rezeptname oder -code suchen und zum Verknüpfen tippen.',
 }: MenuRecipePickerProps) {
   const [search, setSearch] = useState('')
   const trimmed = search.trim()
@@ -68,10 +68,10 @@ export function MenuRecipePicker({
 
         <div className="-mx-1 max-h-[55vh] space-y-1 overflow-y-auto px-1">
           {isLoading ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">Loading recipes…</p>
+            <p className="py-6 text-center text-sm text-muted-foreground">Rezepte werden geladen…</p>
           ) : recipes.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              No recipes found{trimmed ? ` for “${trimmed}”` : ''}.
+              Keine Rezepte gefunden{trimmed ? ` für „${trimmed}“` : ''}.
             </p>
           ) : (
             recipes.map((r) => {
@@ -91,7 +91,7 @@ export function MenuRecipePicker({
                   {isSelected ? (
                     <Check className="h-4 w-4 shrink-0 text-primary" />
                   ) : (
-                    <Badge variant="outline" className="shrink-0">Link</Badge>
+                    <Badge variant="outline" className="shrink-0">Verknüpfen</Badge>
                   )}
                 </button>
               )

@@ -22,8 +22,8 @@ import type { Menu } from '@/types'
 import { MENU_CATEGORIES } from '@/types'
 
 const schema = z.object({
-  menu_code:        z.string().min(1, 'Required'),
-  menu_name:        z.string().min(1, 'Required'),
+  menu_code:        z.string().min(1, 'Pflichtfeld'),
+  menu_name:        z.string().min(1, 'Pflichtfeld'),
   menu_description: z.string().optional().nullable(),
   category:         z.string().optional(),
   price_per_person: z.preprocess((value) => value === '' ? undefined : value, z.coerce.number().optional().nullable()),
@@ -45,17 +45,17 @@ function MenuForm({ defaultValues, onSubmit, onCancel, loading }: {
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="text-sm font-medium">Menu Code *</label>
+          <label className="text-sm font-medium">Menücode *</label>
           <Input {...register('menu_code')} placeholder="MENU_001" className="mt-1" />
           {errors.menu_code && <p className="text-xs text-destructive mt-1">{errors.menu_code.message}</p>}
         </div>
         <div>
-          <label className="text-sm font-medium">Category</label>
+          <label className="text-sm font-medium">Kategorie</label>
           <Controller control={control} name="category" render={({ field }) => (
             <Select value={field.value ?? '__none__'} onValueChange={(v) => field.onChange(v === '__none__' ? undefined : v)}>
-              <SelectTrigger className="mt-1"><SelectValue placeholder="Select category" /></SelectTrigger>
+              <SelectTrigger className="mt-1"><SelectValue placeholder="Kategorie wählen" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">None</SelectItem>
+                <SelectItem value="__none__">Keine</SelectItem>
                 {MENU_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
               </SelectContent>
             </Select>
@@ -64,33 +64,33 @@ function MenuForm({ defaultValues, onSubmit, onCancel, loading }: {
       </div>
       <div>
         <label className="text-sm font-medium">Name *</label>
-        <Input {...register('menu_name')} placeholder="Menu name" className="mt-1" />
+        <Input {...register('menu_name')} placeholder="Menüname" className="mt-1" />
         {errors.menu_name && <p className="text-xs text-destructive mt-1">{errors.menu_name.message}</p>}
       </div>
       <div>
-        <label className="text-sm font-medium">Description</label>
-        <Textarea {...register('menu_description')} placeholder="Optional description" rows={3} className="mt-1" />
+        <label className="text-sm font-medium">Beschreibung</label>
+        <Textarea {...register('menu_description')} placeholder="Optionale Beschreibung" rows={3} className="mt-1" />
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="text-sm font-medium">Price per Person (€)</label>
+          <label className="text-sm font-medium">Preis pro Person (€)</label>
           <Input {...register('price_per_person')} type="number" step="0.01" placeholder="0.00" className="mt-1" />
-          <p className="text-xs text-muted-foreground mt-1">Optional pricing field for menu planning and display.</p>
+          <p className="text-xs text-muted-foreground mt-1">Optionales Preisfeld für Menüplanung und Anzeige.</p>
         </div>
         <div className="flex items-end pb-1">
           <div className="flex items-center gap-2">
             <input type="checkbox" id="active" {...register('active')} />
-            <label htmlFor="active" className="text-sm">Active</label>
+            <label htmlFor="active" className="text-sm">Aktiv</label>
           </div>
         </div>
       </div>
       <DialogFooter>
         {onCancel && (
           <Button type="button" variant="outline" onClick={onCancel}>
-            Cancel
+            Abbrechen
           </Button>
         )}
-        <Button type="submit" disabled={loading}>{loading ? 'Saving…' : 'Save'}</Button>
+        <Button type="submit" disabled={loading}>{loading ? 'Speichern…' : 'Speichern'}</Button>
       </DialogFooter>
     </form>
   )
@@ -117,7 +117,7 @@ export default function MenusPage() {
         price_per_person: values.price_per_person ?? null,
         active:           values.active,
       })
-      toast.success('Menu created')
+      toast.success('Menü erstellt')
       setDialog(null)
     } catch (e) { toast.error(getErrorMessage(e)) }
   }
@@ -132,27 +132,27 @@ export default function MenusPage() {
         price_per_person: values.price_per_person ?? null,
         active:           values.active,
       }})
-      toast.success('Menu updated')
+      toast.success('Menü aktualisiert')
       setDialog(null)
     } catch (e) { toast.error(getErrorMessage(e)) }
   }
 
   async function handleDelete(id: string, name: string) {
-    if (!confirm(`Delete menu "${name}"?`)) return
+    if (!confirm(`Menü „${name}" wirklich löschen?`)) return
     try {
       await deleteMenu.mutateAsync(id)
-      toast.success('Menu deleted')
+      toast.success('Menü gelöscht')
     } catch (e) { toast.error(getErrorMessage(e)) }
   }
 
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title="Menus"
-        description="Menu management — recipe assignments, categories, active state"
+        title="Menüs"
+        description="Menüverwaltung — Rezeptzuordnungen, Kategorien, Aktiv-Status"
         actions={
           <Button onClick={() => setDialog('create')} size="sm">
-            <Plus className="h-4 w-4" /> New Menu
+            <Plus className="h-4 w-4" /> Neues Menü
           </Button>
         }
       />
@@ -160,15 +160,15 @@ export default function MenusPage() {
         <div className="flex gap-3">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search menus…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+            <Input placeholder="Menüs suchen…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
           </div>
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
             <SelectTrigger className="w-40">
               <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
-              <SelectValue placeholder="All" />
+              <SelectValue placeholder="Alle" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">All</SelectItem>
+              <SelectItem value="__all__">Alle</SelectItem>
               {categories.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
             </SelectContent>
           </Select>
@@ -181,21 +181,21 @@ export default function MenusPage() {
                 <TableRow>
                   <TableHead>Code</TableHead>
                   <TableHead>Name</TableHead>
-                  <TableHead>Category</TableHead>
+                  <TableHead>Kategorie</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="w-28" />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Laden…</TableCell></TableRow>
                 ) : menus.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                       <div className="space-y-3">
-                        <p>No menus found. Create your first menu to start building the workflow.</p>
+                        <p>Keine Menüs gefunden. Lege dein erstes Menü an, um den Prozess zu starten.</p>
                         <Button size="sm" onClick={() => setDialog('create')}>
-                          <Plus className="h-4 w-4" /> Create Menu
+                          <Plus className="h-4 w-4" /> Menü anlegen
                         </Button>
                       </div>
                     </TableCell>
@@ -214,7 +214,7 @@ export default function MenusPage() {
                       </TableCell>
                       <TableCell className="text-muted-foreground">{menu.category ?? '—'}</TableCell>
                       <TableCell>
-                        {menu.active ? <Badge variant="success">Active</Badge> : <Badge variant="secondary">Inactive</Badge>}
+                        {menu.active ? <Badge variant="success">Aktiv</Badge> : <Badge variant="secondary">Inaktiv</Badge>}
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
@@ -235,13 +235,13 @@ export default function MenusPage() {
       </div>
 
       <Dialog open={dialog === 'create'} onOpenChange={(o) => !o && setDialog(null)}>
-        <DialogContent><DialogHeader><DialogTitle>New Menu</DialogTitle></DialogHeader>
+        <DialogContent><DialogHeader><DialogTitle>Neues Menü</DialogTitle></DialogHeader>
           <MenuForm onSubmit={handleCreate} onCancel={() => setDialog(null)} loading={createMenu.isPending} />
         </DialogContent>
       </Dialog>
       {dialog && typeof dialog === 'object' && 'edit' in dialog && (
         <Dialog open onOpenChange={(o) => !o && setDialog(null)}>
-          <DialogContent><DialogHeader><DialogTitle>Edit Menu</DialogTitle></DialogHeader>
+          <DialogContent><DialogHeader><DialogTitle>Menü bearbeiten</DialogTitle></DialogHeader>
             <MenuForm
               defaultValues={{
                 menu_code:        dialog.edit.menu_code,

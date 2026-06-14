@@ -29,44 +29,44 @@ export default function ValidationPage() {
 
   const checks: Check[] = [
     {
-      label: 'Units present',
-      description: 'At least one unit must exist.',
+      label: 'Einheiten vorhanden',
+      description: 'Mindestens eine Einheit muss vorhanden sein.',
       status: loading ? 'loading' : units.length > 0 ? 'pass' : 'warn',
-      detail: loading ? undefined : `${units.length} units`,
+      detail: loading ? undefined : `${units.length} Einheiten`,
     },
     {
-      label: 'Ingredients present',
-      description: 'At least one ingredient must exist.',
+      label: 'Zutaten vorhanden',
+      description: 'Mindestens eine Zutat muss vorhanden sein.',
       status: loading ? 'loading' : ingredients.length > 0 ? 'pass' : 'warn',
-      detail: loading ? undefined : `${ingredients.length} ingredients`,
+      detail: loading ? undefined : `${ingredients.length} Zutaten`,
     },
     {
-      label: 'Recipes present',
-      description: 'At least one recipe must exist.',
+      label: 'Rezepte vorhanden',
+      description: 'Mindestens ein Rezept muss vorhanden sein.',
       status: loading ? 'loading' : recipes.length > 0 ? 'pass' : 'warn',
-      detail: loading ? undefined : `${recipes.length} recipes`,
+      detail: loading ? undefined : `${recipes.length} Rezepte`,
     },
     {
-      label: 'Ingredients have default unit',
-      description: 'All ingredients should have a default unit assigned.',
+      label: 'Zutaten mit Standardeinheit',
+      description: 'Alle Zutaten sollten eine Standardeinheit zugeordnet haben.',
       status: loading ? 'loading' : ingredientsWithNoUnit.length === 0 ? 'pass' : 'warn',
       detail: loading ? undefined : ingredientsWithNoUnit.length === 0
-        ? 'All assigned'
-        : `${ingredientsWithNoUnit.length} without unit`,
+        ? 'Alle zugeordnet'
+        : `${ingredientsWithNoUnit.length} ohne Einheit`,
     },
     {
-      label: 'Ingredients have category',
-      description: 'Ingredients without a category reduce filter accuracy.',
+      label: 'Zutaten mit Kategorie',
+      description: 'Zutaten ohne Kategorie verringern die Filtergenauigkeit.',
       status: loading ? 'loading' : ingredientsWithNoCategory.length === 0 ? 'pass' : 'warn',
       detail: loading ? undefined : ingredientsWithNoCategory.length === 0
-        ? 'All categorized'
-        : `${ingredientsWithNoCategory.length} without category`,
+        ? 'Alle kategorisiert'
+        : `${ingredientsWithNoCategory.length} ohne Kategorie`,
     },
     {
-      label: 'Menus present',
-      description: 'At least one menu should exist for event planning.',
+      label: 'Menüs vorhanden',
+      description: 'Für die Eventplanung sollte mindestens ein Menü vorhanden sein.',
       status: loading ? 'loading' : menus.length > 0 ? 'pass' : 'warn',
-      detail: loading ? undefined : `${menus.length} menus`,
+      detail: loading ? undefined : `${menus.length} Menüs`,
     },
   ]
 
@@ -76,33 +76,33 @@ export default function ValidationPage() {
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title="Data Validation"
-        description="Automated checks on master data completeness and consistency"
+        title="Datenvalidierung"
+        description="Automatische Prüfungen auf Vollständigkeit und Konsistenz der Stammdaten"
       />
       <div className="p-8 space-y-6">
         <div className="grid gap-4 grid-cols-3">
           <Card>
             <CardContent className="pt-6">
               <p className="text-3xl font-bold text-emerald-400">{passCount}</p>
-              <p className="text-sm text-muted-foreground">Checks passed</p>
+              <p className="text-sm text-muted-foreground">Prüfungen bestanden</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
               <p className="text-3xl font-bold text-amber-400">{warnCount}</p>
-              <p className="text-sm text-muted-foreground">Warnings</p>
+              <p className="text-sm text-muted-foreground">Warnungen</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
               <p className="text-3xl font-bold">{checks.length}</p>
-              <p className="text-sm text-muted-foreground">Total checks</p>
+              <p className="text-sm text-muted-foreground">Prüfungen gesamt</p>
             </CardContent>
           </Card>
         </div>
 
         <Card>
-          <CardHeader><CardTitle className="text-base">Validation Results</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">Prüfergebnisse</CardTitle></CardHeader>
           <CardContent className="space-y-2">
             {checks.map((check) => (
               <div key={check.label} className="flex items-start gap-3 p-3 rounded-md bg-muted/50">

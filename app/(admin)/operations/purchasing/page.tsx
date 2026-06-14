@@ -78,12 +78,12 @@ function PurchasingOutputInner() {
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title="Purchasing Output"
-        description="Einkaufsmengen aggregiert nach Kategorie — Produktion ÷ Yield %"
+        title="Einkaufsausgabe"
+        description="Einkaufsmengen aggregiert nach Kategorie — Produktion ÷ Ausbeute %"
         actions={
           hasResult ? (
             <div className="flex gap-2 print:hidden">
-              <Button size="sm" variant="outline" onClick={() => window.print()}><Printer className="h-4 w-4" /> Sheet</Button>
+              <Button size="sm" variant="outline" onClick={() => window.print()}><Printer className="h-4 w-4" /> Drucken</Button>
               <Button size="sm" onClick={exportCsv}><Download className="h-4 w-4" /> CSV</Button>
             </div>
           ) : undefined
@@ -94,7 +94,7 @@ function PurchasingOutputInner() {
         <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
           <div className="min-w-[15rem] print:hidden">
             <Select value={batchId || undefined} onValueChange={setBatchId}>
-              <SelectTrigger className="h-9"><SelectValue placeholder="Batch wählen…" /></SelectTrigger>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Produktionslauf wählen…" /></SelectTrigger>
               <SelectContent>{batches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
             </Select>
           </div>
@@ -103,10 +103,10 @@ function PurchasingOutputInner() {
               <Stat label="Positionen" value={totals.positions} sub={`${totals.categories} Kategorien`} />
               <Stat label="Bestellbar" value={totals.orderable} tone="primary" />
               {totals.qualitative > 0 && <Stat label="n. Bedarf" value={totals.qualitative} tone="muted" />}
-              <Stat label="Yield" value={`${nf.format(DEFAULT_CALC_CONFIG.yieldPct)} %`} tone="muted" sub="Einkauf = Prod. ÷ Yield" />
+              <Stat label="Ausbeute" value={`${nf.format(DEFAULT_CALC_CONFIG.yieldPct)} %`} tone="muted" sub="Einkauf = Prod. ÷ Ausbeute" />
               {result!.totalCost != null && <Stat label="Kosten (geschätzt)" value={cf.format(result!.totalCost)} tone="primary" />}
               {batch && (
-                <Link href={`/operations/batches/${batch.id}`} className="ml-auto text-sm text-primary hover:underline print:hidden">Batch bearbeiten →</Link>
+                <Link href={`/operations/batches/${batch.id}`} className="ml-auto text-sm text-primary hover:underline print:hidden">Produktionslauf bearbeiten →</Link>
               )}
             </>
           )}
@@ -116,7 +116,7 @@ function PurchasingOutputInner() {
       <div className="p-6 lg:p-8 space-y-5">
         {hasResult && batch && (
           <div className="hidden print:block">
-            <h1 className="text-xl font-bold">Purchasing Sheet</h1>
+            <h1 className="text-xl font-bold">Einkaufsblatt</h1>
             <p className="text-sm">{batch.name}{batch.production_date ? ` · ${new Date(batch.production_date).toLocaleDateString('de-DE')}` : ''}</p>
           </div>
         )}
@@ -135,7 +135,7 @@ function PurchasingOutputInner() {
         {!hasResult ? (
           <Card><CardContent className="py-12 text-center text-muted-foreground">
             <ShoppingCart className="h-6 w-6 mx-auto opacity-50 mb-2" />
-            {!batchId ? 'Batch wählen, um die Einkaufsliste zu sehen.' : isLoading ? 'Berechne…' : 'Dieser Batch ergibt keine Zutaten (Menüs/Pax/Rezept-Verknüpfung prüfen).'}
+            {!batchId ? 'Produktionslauf wählen, um die Einkaufsliste zu sehen.' : isLoading ? 'Berechne…' : 'Dieser Produktionslauf ergibt keine Zutaten (Menüs/Personenzahl/Rezept-Verknüpfung prüfen).'}
           </CardContent></Card>
         ) : (
           groups.map((g) => (

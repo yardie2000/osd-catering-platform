@@ -11,7 +11,6 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Plus, Pencil, Trash2, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 import { getErrorMessage } from '@/lib/errors'
@@ -21,11 +20,18 @@ import { z } from 'zod'
 import type { KitchenBatch } from '@/types'
 
 const STATUS = ['planned', 'in_progress', 'done', 'archived'] as const
+const STATUS_LABELS: Record<string, string> = {
+  planned: 'Geplant',
+  in_progress: 'In Bearbeitung',
+  done: 'Abgeschlossen',
+  archived: 'Archiviert',
+}
+const statusLabel = (s: string) => STATUS_LABELS[s] ?? s
 const statusVariant = (s: string) =>
   s === 'done' ? 'success' : s === 'in_progress' ? 'warning' : s === 'archived' ? 'secondary' : 'outline'
 
 const schema = z.object({
-  name:            z.string().min(1, 'Required'),
+  name:            z.string().min(1, 'Pflichtfeld'),
   status:          z.string().default('planned'),
   description:     z.string().optional().nullable(),
   start_date:      z.string().optional().nullable(),
@@ -68,7 +74,7 @@ function BatchForm({ defaultValues, onSubmit, onCancel, loading }: {
       <div>
         <label className="text-sm font-medium">Status</label>
         <select {...register('status')} className="mt-1 block w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
-          {STATUS.map((s) => <option key={s} value={s}>{s}</option>)}
+          {STATUS.map((s) => <option key={s} value={s}>{statusLabel(s)}</option>)}
         </select>
       </div>
       <div>
@@ -104,27 +110,27 @@ export default function BatchesPage() {
   async function handleCreate(v: FormValues) {
     try {
       await createBatch.mutateAsync(toPayload(v))
-      toast.success('Batch angelegt'); setDialog(null)
+      toast.success('Produktionslauf angelegt'); setDialog(null)
     } catch (e) { toast.error(getErrorMessage(e)) }
   }
   async function handleEdit(id: string, v: FormValues) {
     try {
       await updateBatch.mutateAsync({ id, payload: toPayload(v) })
-      toast.success('Batch aktualisiert'); setDialog(null)
+      toast.success('Produktionslauf aktualisiert'); setDialog(null)
     } catch (e) { toast.error(getErrorMessage(e)) }
   }
   async function handleDelete(id: string, name: string) {
-    if (!confirm(`Batch „${name}" löschen? Die Menü-Zuordnungen werden mitgelöscht.`)) return
-    try { await deleteBatch.mutateAsync(id); toast.success('Batch gelöscht') }
+    if (!confirm(`Produktionslauf „${name}" löschen? Die Menü-Zuordnungen werden mitgelöscht.`)) return
+    try { await deleteBatch.mutateAsync(id); toast.success('Produktionslauf gelöscht') }
     catch (e) { toast.error(getErrorMessage(e)) }
   }
 
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title="Production Batches"
-        description="Zentrale Produktionsplanung — Menüs + Pax einmalig erfassen; Produktion & Einkauf werden daraus abgeleitet"
-        actions={<Button size="sm" onClick={() => setDialog('create')}><Plus className="h-4 w-4" /> Neuer Batch</Button>}
+        title="Produktionsläufe"
+        description="Zentrale Produktionsplanung — Menüs + Personenzahl einmalig erfassen; Produktion & Einkauf werden daraus abgeleitet"
+        actions={<Button size="sm" onClick={() => setDialog('create')}><Plus className="h-4 w-4" /> Neuer Produktionslauf</Button>}
       />
       <div className="p-8">
         <Card>
@@ -146,8 +152,8 @@ export default function BatchesPage() {
                   <TableRow>
                     <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                       <div className="space-y-3">
-                        <p>Noch keine Production Batches. Lege den ersten an, um Menüs &amp; Pax zu erfassen.</p>
-                        <Button size="sm" onClick={() => setDialog('create')}><Plus className="h-4 w-4" /> Batch anlegen</Button>
+                        <p>Noch keine Produktionsläufe. Lege den ersten an, um Menüs &amp; Personenzahl zu erfassen.</p>
+                        <Button size="sm" onClick={() => setDialog('create')}><Plus className="h-4 w-4" /> Produktionslauf anlegen</Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -166,7 +172,7 @@ export default function BatchesPage() {
                           ? `${b.start_date ? new Date(b.start_date).toLocaleDateString('de-DE') : '…'} – ${b.end_date ? new Date(b.end_date).toLocaleDateString('de-DE') : '…'}`
                           : '—'}
                       </TableCell>
-                      <TableCell><Badge variant={statusVariant(b.status)}>{b.status}</Badge></TableCell>
+                      <TableCell><Badge variant={statusVariant(b.status)}>{statusLabel(b.status)}</Badge></TableCell>
                       <TableCell>
                         <div className="flex items-center justify-end gap-1">
                           <Button asChild variant="ghost" size="icon" className="h-8 w-8">
@@ -190,13 +196,13 @@ export default function BatchesPage() {
       </div>
 
       <Dialog open={dialog === 'create'} onOpenChange={(o) => !o && setDialog(null)}>
-        <DialogContent><DialogHeader><DialogTitle>Neuer Production Batch</DialogTitle></DialogHeader>
+        <DialogContent><DialogHeader><DialogTitle>Neuer Produktionslauf</DialogTitle></DialogHeader>
           <BatchForm onSubmit={handleCreate} onCancel={() => setDialog(null)} loading={createBatch.isPending} />
         </DialogContent>
       </Dialog>
       {dialog && typeof dialog === 'object' && 'edit' in dialog && (
         <Dialog open onOpenChange={(o) => !o && setDialog(null)}>
-          <DialogContent><DialogHeader><DialogTitle>Batch bearbeiten</DialogTitle></DialogHeader>
+          <DialogContent><DialogHeader><DialogTitle>Produktionslauf bearbeiten</DialogTitle></DialogHeader>
             <BatchForm
               defaultValues={{
                 name:            dialog.edit.name,

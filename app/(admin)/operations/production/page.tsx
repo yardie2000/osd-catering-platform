@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Printer, Download, AlertTriangle, Info, ChefHat } from 'lucide-react'
 import { toast } from 'sonner'
-import { nf, cf, QtyCell, Stat, StickyBar, baseSourceLabel } from '@/components/operations/output-ui'
+import { nf, QtyCell, Stat, StickyBar, baseSourceLabel } from '@/components/operations/output-ui'
 
 function ProductionOutputInner() {
   const params = useSearchParams()
@@ -59,12 +59,12 @@ function ProductionOutputInner() {
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title="Production Output"
+        title="Produktionsausgabe"
         description="Produktionsmengen je Rezept — Netto × (1 + Verlust %)"
         actions={
           hasResult ? (
             <div className="flex gap-2 print:hidden">
-              <Button size="sm" variant="outline" onClick={() => window.print()}><Printer className="h-4 w-4" /> Sheet</Button>
+              <Button size="sm" variant="outline" onClick={() => window.print()}><Printer className="h-4 w-4" /> Drucken</Button>
               <Button size="sm" onClick={exportCsv}><Download className="h-4 w-4" /> CSV</Button>
             </div>
           ) : undefined
@@ -76,7 +76,7 @@ function ProductionOutputInner() {
         <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
           <div className="min-w-[15rem] print:hidden">
             <Select value={batchId || undefined} onValueChange={setBatchId}>
-              <SelectTrigger className="h-9"><SelectValue placeholder="Batch wählen…" /></SelectTrigger>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Produktionslauf wählen…" /></SelectTrigger>
               <SelectContent>{batches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
             </Select>
           </div>
@@ -84,11 +84,11 @@ function ProductionOutputInner() {
             <>
               <Stat label="Rezepte" value={totals.recipes} sub={`${totals.withIng} mit Zutaten`} />
               <Stat label="Portionen" value={nf.format(totals.portions)} tone="primary" />
-              <Stat label="Pax" value={nf.format(totals.pax)} />
+              <Stat label="Personen" value={nf.format(totals.pax)} />
               <Stat label="Verlust" value={`${nf.format(DEFAULT_CALC_CONFIG.productionLossPct)} %`} tone="muted" sub="Produktion = Netto ×1,1" />
               {plan!.assumptions.length > 0 && <Stat label="Basis prüfen" value={plan!.assumptions.length} tone="warning" />}
               {batch && (
-                <Link href={`/operations/batches/${batch.id}`} className="ml-auto text-sm text-primary hover:underline print:hidden">Batch bearbeiten →</Link>
+                <Link href={`/operations/batches/${batch.id}`} className="ml-auto text-sm text-primary hover:underline print:hidden">Produktionslauf bearbeiten →</Link>
               )}
             </>
           )}
@@ -98,7 +98,7 @@ function ProductionOutputInner() {
       <div className="p-6 lg:p-8 space-y-5">
         {hasResult && batch && (
           <div className="hidden print:block">
-            <h1 className="text-xl font-bold">Kitchen Production Sheet</h1>
+            <h1 className="text-xl font-bold">Küchen-Produktionsblatt</h1>
             <p className="text-sm">{batch.name}{batch.production_date ? ` · ${new Date(batch.production_date).toLocaleDateString('de-DE')}` : ''}</p>
           </div>
         )}
@@ -127,7 +127,7 @@ function ProductionOutputInner() {
         {!hasResult ? (
           <Card><CardContent className="py-12 text-center text-muted-foreground">
             <ChefHat className="h-6 w-6 mx-auto opacity-50 mb-2" />
-            {!batchId ? 'Batch wählen, um den Produktionsplan zu sehen.' : isLoading ? 'Berechne…' : 'Dieser Batch hat keine produzierbaren Rezepte (Menüs/Pax/Rezept-Verknüpfung prüfen).'}
+            {!batchId ? 'Produktionslauf wählen, um den Produktionsplan zu sehen.' : isLoading ? 'Berechne…' : 'Dieser Produktionslauf hat keine produzierbaren Rezepte (Menüs/Personenzahl/Rezept-Verknüpfung prüfen).'}
           </CardContent></Card>
         ) : (
           <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
