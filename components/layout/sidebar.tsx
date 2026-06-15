@@ -14,6 +14,7 @@ import {
   ChefHat,
   ShoppingCart,
   ClipboardList,
+  FileInput,
   Settings,
   ChevronRight,
   X,
@@ -46,6 +47,7 @@ const nav: NavEntry[] = [
   {
     label: 'Betrieb',
     children: [
+      { label: 'Bedarf-Import',      href: '/operations/bedarf-import', icon: FileInput },
       { label: 'Produktionsläufe',  href: '/operations/batches',     icon: ClipboardList },
       { label: 'Produktionsausgabe', href: '/operations/production',  icon: ChefHat },
       { label: 'Einkaufsausgabe',    href: '/operations/purchasing',  icon: ShoppingCart },
@@ -152,7 +154,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         </nav>
 
         <div className="border-t p-4 text-center">
-          <p className="text-[10px] text-muted-foreground">OSD Catering Platform V4.3</p>
+          <p className="text-[10px] text-muted-foreground">OSD Catering Platform V4.5</p>
         </div>
       </aside>
     </>

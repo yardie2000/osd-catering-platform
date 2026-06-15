@@ -1,4 +1,4 @@
-# OSD Catering Platform — V4.3
+# OSD Catering Platform — V4.5
 
 Eine **operative Catering Calculation & Production Engine** — kein allgemeines Eventmanagement-Tool.
 Sie verwaltet Stammdaten (Einheiten, Zutaten, Rezepte, Menüs) und leitet daraus **Produktions- und
@@ -10,12 +10,14 @@ und Einkaufslisten.
 
 ---
 
-## Status: V4.3 — auf dem Weg zu V4.5
+## Status: V4.5
 
-Aktueller Stand **V4.3** — ein konsistenter, kompilierbarer Zwischenstand der V4.5-Konsolidierung
-(`tsc` 0 Fehler · Build grün · Tests grün). **V4.5 ist noch nicht erreicht.**
+Konsolidierter, kompilierbarer Stand (`tsc` 0 Fehler · Lint grün · Build grün · Tests grün).
+Die beiden V4.5-Kriterien — **vollständige deutsche Lokalisierung** und ein **funktionierender
+Import-/Matching-Pfad** — sind erfüllt; das Matching liegt als belastbarer Prototyp vor (das
+vollwertige Matching-Center ist V5, siehe unten).
 
-**In V4.3 abgeschlossen**
+**In V4.5 abgeschlossen**
 
 - **Rezeptbasis vereinheitlicht:** `base_portions` als kanonisches Feld (App-seitig Pflicht, DB
   vorerst nullable) neben `yield_quantity` / `yield_unit_id` / `yield_pct` / `production_loss_pct`.
@@ -23,19 +25,26 @@ Aktueller Stand **V4.3** — ein konsistenter, kompilierbarer Zwischenstand der 
   Typdateien und kaputte camelCase-Migrationen bereinigt.
 - **Rezept-UI entdoppelt:** gemeinsame `RecipeForm` für Neu/Bearbeiten, echte read-only
   Rezept-Detailseite, korrigierte Routenpfade.
+- **Master Data komplett:** Zutaten und Einheiten als Liste, Dialog-CRUD **und** echte
+  Detail-/Neu-/Bearbeiten-Unterseiten über wiederverwendbare Formulare.
 - **Rechen-Engine:** `base_portions` ist jetzt die **primäre Portionsbasis** (`resolveBase`), vor
   `yield_quantity` → Notiz → Default.
 - **Datenqualität:** Rezeptbasis-Vollständigkeit live sichtbar + nicht-destruktiver Backfill
   („Basisportionen aus Ertrag übernehmen").
-- **Deutsche Lokalisierung** der Bereiche Rezepte, Zutaten, Einheiten und Datenqualität.
+- **App-weite deutsche Lokalisierung** der zentralen Module (Rezepte, Zutaten, Einheiten,
+  Datenqualität, Menüs, Produktions-/Einkaufsausgabe, Produktionsläufe, Import, Validierung,
+  Einstellungen, Navigation).
+- **ESLint** nicht-interaktiv (Flat Config `eslint.config.mjs`, `npm run lint` → `eslint .`).
+- **MouseClick-Bedarf-Import (Prototyp):** Produktbedarf-CSV einlesen → Produkt-zu-Menü-Matching
+  (Auto-Vorschlag + manuelle Bestätigung) → Produktionslauf erzeugen, der die vorhandene
+  Bedarfsberechnung speist. Parser + Matcher mit Tests abgesichert.
 
-**V4.5 gilt als erreicht, wenn beide Punkte erfüllt sind**
+**Noch offen Richtung V5** ([`OSD_CATERING_PLATFORM_V5_SPEC.md`](OSD_CATERING_PLATFORM_V5_SPEC.md))
 
-1. **Das Import-Feature ist fertig** — Import-Review/Staging, Matching-Center (belastbare
-   Menü-zu-Rezept-Zuordnung) und Lieferanten-/Bestelllogik. Detailplan:
-   [`OSD_CATERING_PLATFORM_V5_SPEC.md`](OSD_CATERING_PLATFORM_V5_SPEC.md).
-2. **Die App ist vollständig auf Deutsch** — die noch englischen Bereiche (u. a. Menüs-,
-   Operations-Outputs, Settings, Import/Validation) sind durchgängig lokalisiert.
+- **Vollwertiges Matching-Center:** persistente Zuordnungen (`entity_aliases`), Confidence-Queue,
+  Import-Review/Staging.
+- **Lieferanten- und Bestelllogik**, Export je Bestellung.
+- **Rollen-/Rechtekonzept (RLS)** für den Produktivbetrieb.
 
 ---
 

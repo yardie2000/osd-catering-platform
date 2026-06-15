@@ -1,0 +1,105 @@
+// Tests for the MouseClick Produktbedarf CSV parser (lib/produktbedarf/parse.ts).
+// Run: node --import ./tests/register.mjs --test tests/produktbedarf.test.ts
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+
+import { parseProduktbedarfCsv, tokenizeDelimited } from '@/lib/produktbedarf/parse'
+import { normalizeName, scoreMatch, suggestMatch } from '@/lib/produktbedarf/match'
+
+// Representative subset of a real export: semicolon-delimited, quoted, with a
+// multi-line Aufträge field, an HTML entity, an "Optional zubuchbar" row and a
+// "Stk" unit row.
+const SAMPLE = [
+  '"Produkt";"Langbezeichnung";"Menge";"Einheit";"Aufträge";"Klassifizierung"',
+  '"Fingerfood Caesar";"FingerfoodCaesar&lsquo;s Salad / Parmesan";"205";"pax";" HZ Monika H L SSP_97 EW (97 pax)',
+  ' Castlabs AV H ca 75pax abends (75 pax)',
+  ' DGVS WS R L (DH) ca 35pax ganztägig (33 pax)";"Speisen"',
+  '"BBQ Basic Menü 2026";"BBQ Basic Menü vegan / vegetarisch";"369";"pax";" Funke WS L H R (75 pax)',
+  ' synaigy AV DHOLSSP ca 180 pax abends (180 pax)";"Speisen"',
+  '"Trinkgeld";"TrinkgeldKleines Trinkgeld :)";"0";"";" Funke WS L H R ca 75pax tagsüber (0 )";"Optional zubuchbar"',
+  '"Midnightsnack Chili sin/con...";"Midnightsnack Chili sin/con Carne";"97";"Stk";" HZ Monika H L SSP_97 EW (97 Stk)";"Speisen"',
+  '',
+].join('\n')
+
+test('tokenizer keeps multi-line quoted fields in one cell', () => {
+  const grid = tokenizeDelimited(SAMPLE, ';')
+  // Header + 4 data rows (the trailing blank line produces no record).
+  assert.equal(grid.filter((r) => r.some((c) => c.trim() !== '')).length, 5)
+  // The Caesar row's Aufträge cell must contain all three events.
+  const caesar = grid[1]
+  assert.match(caesar[4], /97 pax/)
+  assert.match(caesar[4], /75 pax/)
+  assert.match(caesar[4], /33 pax/)
+})
+
+test('parses rows with totals, unit and classification', () => {
+  const rows = parseProduktbedarfCsv(SAMPLE)
+  assert.equal(rows.length, 4)
+
+  const bbq = rows.find((r) => r.produkt === 'BBQ Basic Menü 2026')
+  assert.ok(bbq)
+  assert.equal(bbq!.menge, 369)
+  assert.equal(bbq!.einheit, 'pax')
+  assert.equal(bbq!.klassifizierung, 'Speisen')
+  assert.equal(bbq!.istOptional, false)
+  assert.equal(bbq!.auftragCount, 2)
+})
+
+test('flags optional/add-on lines and zero demand', () => {
+  const rows = parseProduktbedarfCsv(SAMPLE)
+  const trinkgeld = rows.find((r) => r.produkt === 'Trinkgeld')
+  assert.ok(trinkgeld)
+  assert.equal(trinkgeld!.menge, 0)
+  assert.equal(trinkgeld!.istOptional, true)
+})
+
+test('preserves non-pax units', () => {
+  const rows = parseProduktbedarfCsv(SAMPLE)
+  const snack = rows.find((r) => r.produkt.startsWith('Midnightsnack'))
+  assert.ok(snack)
+  assert.equal(snack!.einheit, 'Stk')
+  assert.equal(snack!.menge, 97)
+})
+
+test('decodes HTML entities in long names', () => {
+  const rows = parseProduktbedarfCsv(SAMPLE)
+  const caesar = rows.find((r) => r.produkt === 'Fingerfood Caesar')
+  assert.ok(caesar)
+  assert.ok(!caesar!.langbezeichnung.includes('&lsquo;'))
+  assert.match(caesar!.langbezeichnung, /Caesar‘s Salad/)
+})
+
+test('multi-line Aufträge is flattened to one string with all events', () => {
+  const rows = parseProduktbedarfCsv(SAMPLE)
+  const caesar = rows.find((r) => r.produkt === 'Fingerfood Caesar')!
+  assert.equal(caesar.auftragCount, 3)
+  assert.match(caesar.auftraege, /97 pax.*75 pax.*33 pax/)
+})
+
+// ── matcher (lib/produktbedarf/match.ts) ──────────────────────────
+
+test('normalizeName folds umlauts and strips punctuation', () => {
+  assert.equal(normalizeName('BBQ Basic Menü 2026'), 'bbq basic menue 2026')
+  assert.equal(normalizeName('Frühstücks-/Pausensnack'), 'fruehstuecks pausensnack')
+})
+
+const MENUS = [
+  { id: 'm-bbq', text: 'BBQ Basic Menü 2026 BBQ-2026' },
+  { id: 'm-lunch', text: 'Lunch Hühnchen Blumenkohl LUN-01' },
+  { id: 'm-caesar', text: 'Fingerfood Caesar Salad FF-CAE' },
+]
+
+test('suggestMatch finds the obvious menu', () => {
+  const hit = suggestMatch('BBQ Basic Menü 2026 BBQ Basic Menü vegan', MENUS)
+  assert.ok(hit)
+  assert.equal(hit!.id, 'm-bbq')
+})
+
+test('suggestMatch returns null below threshold', () => {
+  assert.equal(suggestMatch('Trinkgeld kleines Trinkgeld', MENUS), null)
+})
+
+test('scoreMatch is higher for the correct candidate', () => {
+  const product = 'Fingerfood Caesar FingerfoodCaesar Salad Parmesan'
+  assert.ok(scoreMatch(product, MENUS[2].text) > scoreMatch(product, MENUS[0].text))
+})
