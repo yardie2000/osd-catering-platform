@@ -43,11 +43,27 @@ export type CalcRecipe = {
   recipe_ingredients:  CalcRecipeIngredient[]
 }
 
+// ⭐ V5 Stücklisten-Modell: ein Bestandteil einer Menü-Position — entweder ein
+// (vorproduziertes) Rezept ODER eine zugekaufte/rohe Zutat, mit Menge pro Portion.
+export type CalcMenuItemComponent = {
+  id:            string
+  recipe_id:     string | null
+  ingredient_id: string | null
+  quantity:      number
+  unit_id:       string | null
+  recipe:        CalcRecipe | null
+  ingredient:    { id: string; ingredient_code: string; name: string; category: string | null } | null
+  unit:          CalcUnit | null
+}
+
 export type CalcMenuItem = {
   id:        string
   name:      string
   recipe_id: string | null
   recipe:    CalcRecipe | null
+  // ⭐ V5: wenn gesetzt, sind DIES die Bestandteile der Position (Quelle der
+  // Wahrheit). Fehlt es, gilt das Legacy-Einzel-recipe_id.
+  components?: CalcMenuItemComponent[]
 }
 
 export type CalcMenu = {
@@ -264,6 +280,71 @@ function resolveSupplier(
   return { supplier_name: products[0].supplier_name, unit_price: null, alternatives }
 }
 
+// ── Komponenten-Explosion (V5 Stücklisten-Modell) ───────────
+// A recipe demand = portions of a (pre-produced) recipe to make. An ingredient
+// demand = a bought/raw component ordered directly.
+export type RecipeDemand = { recipe: CalcRecipe; portions: number; menu: string }
+export type IngredientDemand = {
+  ingredient_id:   string
+  ingredient_code: string
+  ingredient_name: string
+  category:        string | null
+  unit:            CalcUnit | null
+  unit_id:         string
+  quantity:        number
+  menu:            string
+}
+
+/**
+ * Explode (menu, pax) rows into recipe demands (portions to produce) and direct
+ * ingredient demands (bought/raw components). Uses menu_item_components when a
+ * position has them; otherwise falls back to the legacy single menu_item.recipe_id
+ * link (= 1 portion of that recipe per pax), so pre-component data still works.
+ */
+export function explodeMenuRows(rows: CalcInputRow[]): {
+  recipeDemands: RecipeDemand[]
+  ingredientDemands: IngredientDemand[]
+  warnings: PurchasingWarning[]
+} {
+  const recipeDemands: RecipeDemand[] = []
+  const ingredientDemands: IngredientDemand[] = []
+  const warnings: PurchasingWarning[] = []
+  const warnedNoRecipe = new Set<string>()
+
+  for (const { menu, count } of rows) {
+    if (!count || count <= 0) continue
+    for (const item of menu.menu_items) {
+      const comps = item.components ?? []
+      if (comps.length > 0) {
+        for (const c of comps) {
+          const qty = (c.quantity || 0) * count
+          if (qty <= 0) continue
+          if (c.recipe && c.recipe_id) {
+            recipeDemands.push({ recipe: c.recipe, portions: qty, menu: menu.menu_name })
+          } else if (c.ingredient && c.ingredient_id) {
+            ingredientDemands.push({
+              ingredient_id:   c.ingredient_id,
+              ingredient_code: c.ingredient.ingredient_code,
+              ingredient_name: c.ingredient.name,
+              category:        c.ingredient.category,
+              unit:            c.unit,
+              unit_id:         c.unit_id ?? c.unit?.id ?? '',
+              quantity:        qty,
+              menu:            menu.menu_name,
+            })
+          }
+        }
+      } else if (item.recipe && item.recipe_id) {
+        recipeDemands.push({ recipe: item.recipe, portions: count, menu: menu.menu_name })
+      } else if (!warnedNoRecipe.has(item.id)) {
+        warnings.push({ kind: 'no_recipe', menu: menu.menu_name, detail: item.name })
+        warnedNoRecipe.add(item.id)
+      }
+    }
+  }
+  return { recipeDemands, ingredientDemands, warnings }
+}
+
 /**
  * Aggregate ingredient demand for a set of (menu, count) rows into a purchasing
  * list. Per recipe-ingredient: Required = qty × (count/base) × metricFactor;
@@ -291,9 +372,7 @@ export function aggregatePurchasing(
     purchasing: number
   }
   const acc = new Map<string, Acc>()
-  const warnings: PurchasingWarning[] = []
   const assumptions = new Map<string, RecipeBaseInfo>()
-  const warnedNoRecipe = new Set<string>()
   const warnedNoIng = new Set<string>()
 
   const fallback = cfg.defaultBasePortions > 0 ? cfg.defaultBasePortions : 1
@@ -303,59 +382,67 @@ export function aggregatePurchasing(
     if (c === 'g' || c === 'ml') baseByCode.set(c, u)
   }
 
-  for (const { menu, count } of rows) {
-    if (!count || count <= 0) continue
-    for (const item of menu.menu_items) {
-      const recipe = item.recipe
-      if (!recipe || !item.recipe_id) {
-        if (!warnedNoRecipe.has(item.id)) {
-          warnings.push({ kind: 'no_recipe', menu: menu.menu_name, detail: item.name })
-          warnedNoRecipe.add(item.id)
-        }
-        continue
-      }
-      if (recipe.recipe_ingredients.length === 0) {
-        if (!warnedNoIng.has(recipe.id)) {
-          warnings.push({ kind: 'no_ingredients', menu: menu.menu_name, detail: `${recipe.recipe_code} · ${recipe.name}` })
-          warnedNoIng.add(recipe.id)
-        }
-        continue
-      }
+  const { recipeDemands, ingredientDemands, warnings } = explodeMenuRows(rows)
 
-      const { base, source } = resolveBase(recipe, fallback)
-      if (source !== 'base' && source !== 'yield' && !assumptions.has(recipe.id)) {
-        assumptions.set(recipe.id, { recipe_code: recipe.recipe_code, recipe_name: recipe.name, menu: menu.menu_name, base, source })
-      }
-
-      const lossPct = resolveLossPct(recipe, cfg)
-      const yieldPct = resolveYieldPct(recipe, cfg)
-      const scale = count / base
-      for (const ri of recipe.recipe_ingredients) {
-        if (!ri.ingredient) continue
-        const c = canonicalize(ri.unit, ri.unit_id, baseByCode)
-        const cls = classifyUnit(c.unit)
-        const required = ri.quantity * scale * c.factor
-        const { production, purchasing } = applyFactors(required, cls, lossPct, yieldPct)
-        const key = `${ri.ingredient_id}::${c.key}`
-        const existing = acc.get(key)
-        if (existing) {
-          existing.required += required
-          existing.production += production
-          existing.purchasing += purchasing
-        } else {
-          acc.set(key, {
-            ingredient_id:   ri.ingredient_id,
-            ingredient_code: ri.ingredient.ingredient_code,
-            ingredient_name: ri.ingredient.name,
-            category:        ri.ingredient.category,
-            unit_id:         c.unitId,
-            unit:            c.unit,
-            unit_class:      cls,
-            required, production, purchasing,
-          })
-        }
-      }
+  function add(
+    ingredientId: string, ingredientCode: string, ingredientName: string,
+    category: string | null, c: ReturnType<typeof canonicalize>, cls: UnitClass,
+    required: number, production: number, purchasing: number,
+  ) {
+    const key = `${ingredientId}::${c.key}`
+    const existing = acc.get(key)
+    if (existing) {
+      existing.required += required
+      existing.production += production
+      existing.purchasing += purchasing
+    } else {
+      acc.set(key, {
+        ingredient_id: ingredientId, ingredient_code: ingredientCode, ingredient_name: ingredientName,
+        category, unit_id: c.unitId, unit: c.unit, unit_class: cls,
+        required, production, purchasing,
+      })
     }
+  }
+
+  // Recipe demands → raw ingredients (per-recipe base/loss/yield), summed per recipe.
+  const recipePortions = new Map<string, { recipe: CalcRecipe; portions: number; menu: string }>()
+  for (const d of recipeDemands) {
+    const e = recipePortions.get(d.recipe.id)
+    if (e) e.portions += d.portions
+    else recipePortions.set(d.recipe.id, { recipe: d.recipe, portions: d.portions, menu: d.menu })
+  }
+  for (const { recipe, portions, menu } of recipePortions.values()) {
+    if (recipe.recipe_ingredients.length === 0) {
+      if (!warnedNoIng.has(recipe.id)) {
+        warnings.push({ kind: 'no_ingredients', menu, detail: `${recipe.recipe_code} · ${recipe.name}` })
+        warnedNoIng.add(recipe.id)
+      }
+      continue
+    }
+    const { base, source } = resolveBase(recipe, fallback)
+    if (source !== 'base' && source !== 'yield' && !assumptions.has(recipe.id)) {
+      assumptions.set(recipe.id, { recipe_code: recipe.recipe_code, recipe_name: recipe.name, menu, base, source })
+    }
+    const lossPct = resolveLossPct(recipe, cfg)
+    const yieldPct = resolveYieldPct(recipe, cfg)
+    const scale = portions / base
+    for (const ri of recipe.recipe_ingredients) {
+      if (!ri.ingredient) continue
+      const c = canonicalize(ri.unit, ri.unit_id, baseByCode)
+      const cls = classifyUnit(c.unit)
+      const required = ri.quantity * scale * c.factor
+      const { production, purchasing } = applyFactors(required, cls, lossPct, yieldPct)
+      add(ri.ingredient_id, ri.ingredient.ingredient_code, ri.ingredient.name, ri.ingredient.category, c, cls, required, production, purchasing)
+    }
+  }
+
+  // Direct ingredient demands (zugekauft/roh) → purchasing, global loss/yield.
+  for (const d of ingredientDemands) {
+    const c = canonicalize(d.unit, d.unit_id, baseByCode)
+    const cls = classifyUnit(c.unit)
+    const required = d.quantity * c.factor
+    const { production, purchasing } = applyFactors(required, cls, cfg.productionLossPct, cfg.yieldPct)
+    add(d.ingredient_id, d.ingredient_code, d.ingredient_name, d.category, c, cls, required, production, purchasing)
   }
 
   const byIngredient = new Map<string, SupplierProduct[]>()

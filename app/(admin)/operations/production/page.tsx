@@ -134,7 +134,12 @@ function ProductionOutputInner() {
             {!batchId ? 'Produktionslauf wählen, um den Produktionsplan zu sehen.' : isLoading ? 'Berechne…' : 'Dieser Produktionslauf hat keine produzierbaren Rezepte (Menüs/Personenzahl/Rezept-Verknüpfung prüfen).'}
           </CardContent></Card>
         ) : hasResult ? (
-          <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+          <>
+            <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-sm font-semibold">Vorproduktion (Komponenten)</h2>
+              <span className="text-xs text-muted-foreground">{plan.batches.length} Rezepte · vorab chargenweise herstellen</span>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
             {plan.batches.map((b) => {
               const src = baseSourceLabel(b.source)
               return (
@@ -172,7 +177,8 @@ function ProductionOutputInner() {
                 </Card>
               )
             })}
-          </div>
+            </div>
+          </>
         ) : null}
       </div>
     </div>

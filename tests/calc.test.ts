@@ -16,10 +16,14 @@ import {
   resolveLossPct,
   resolveYieldPct,
   aggregatePurchasing,
+  explodeMenuRows,
   DEFAULT_CALC_CONFIG,
   type CalcMenu,
   type CalcRecipe,
+  type CalcMenuItemComponent,
 } from '@/lib/purchasing/aggregate'
+import { buildProductionPlan } from '@/lib/production/plan'
+import { buildCalcMenus, type RawCalcMenu } from '@/lib/operations/calcMenu'
 
 const GRAMM = { id: 'u-g', unit_code: 'g', name: 'Gramm', short_name: 'g' }
 
@@ -136,4 +140,145 @@ test('aggregatePurchasing warns when a menu item has no recipe', () => {
   assert.equal(result.lines.length, 0)
   assert.equal(result.warnings.length, 1)
   assert.equal(result.warnings[0].kind, 'no_recipe')
+})
+
+// ── V5 Komponenten-Modell ──────────────────────────────────────
+
+const STK = { id: 'u-stk', unit_code: 'Stk', name: 'Stück', short_name: 'Stk' }
+
+// A pre-produced sauce: base 1 portion, 50 g cream per portion.
+function sauceRecipe(): CalcRecipe {
+  return {
+    id: 'r-sauce', recipe_code: 'SAU-001', name: 'Haselnuss-Sauce',
+    base_portions: 1, yield_quantity: null, production_notes: null,
+    production_loss_pct: null, yield_pct: null,
+    recipe_ingredients: [{
+      id: 'ri-s', quantity: 50, ingredient_id: 'ing-cream', unit_id: GRAMM.id,
+      ingredient: { id: 'ing-cream', ingredient_code: 'ZUT-CREAM', name: 'Sahne', category: null },
+      unit: GRAMM,
+    }],
+  }
+}
+
+function compMenu(components: CalcMenuItemComponent[]): CalcMenu {
+  return {
+    id: 'm-c', menu_code: 'MEN-C', menu_name: 'KompMenü',
+    menu_items: [{ id: 'mi-c', name: 'Teller', recipe_id: null, recipe: null, components }],
+  }
+}
+const recipeComp = (r: CalcRecipe, qty: number): CalcMenuItemComponent => ({
+  id: 'c-r', recipe_id: r.id, ingredient_id: null, quantity: qty, unit_id: null, recipe: r, ingredient: null, unit: null,
+})
+const ingredientComp = (qty: number): CalcMenuItemComponent => ({
+  id: 'c-i', recipe_id: null, ingredient_id: 'ing-poularde', quantity: qty, unit_id: STK.id,
+  recipe: null, ingredient: { id: 'ing-poularde', ingredient_code: 'ZUK-P', name: 'Poularde', category: null }, unit: STK,
+})
+
+test('recipe component → raw purchasing scaled by portions (1 Portion/Position × pax)', () => {
+  const m = compMenu([recipeComp(sauceRecipe(), 1)])
+  const r = aggregatePurchasing([{ menu: m, count: 100 }], [], DEFAULT_CALC_CONFIG, [GRAMM])
+  // 100 Portionen × 50 g = 5000 g required; ×1.1 = 5500; ÷0.8 = 6875
+  assert.equal(r.lines.length, 1)
+  assert.equal(r.lines[0].ingredient_name, 'Sahne')
+  assert.equal(Math.round(r.lines[0].required_quantity), 5000)
+  assert.equal(Math.round(r.lines[0].quantity), 6875)
+})
+
+test('recipe component → production (Vorproduktion) lists the sauce by portions', () => {
+  const m = compMenu([recipeComp(sauceRecipe(), 1)])
+  const p = buildProductionPlan([{ menu: m, count: 100 }], DEFAULT_CALC_CONFIG)
+  assert.equal(p.batches.length, 1)
+  assert.equal(p.batches[0].recipe_code, 'SAU-001')
+  assert.equal(p.batches[0].portions_needed, 100)
+})
+
+test('ingredient component → purchasing direct (count, no loss/yield), no production', () => {
+  const m = compMenu([ingredientComp(1)])
+  const r = aggregatePurchasing([{ menu: m, count: 100 }], [], DEFAULT_CALC_CONFIG, [GRAMM, STK])
+  assert.equal(r.lines.length, 1)
+  assert.equal(r.lines[0].ingredient_name, 'Poularde')
+  assert.equal(r.lines[0].unit_class, 'count')
+  assert.equal(r.lines[0].quantity, 100) // counts are never loss/yield-inflated
+  const p = buildProductionPlan([{ menu: m, count: 100 }], DEFAULT_CALC_CONFIG)
+  assert.equal(p.batches.length, 0) // bought item is not produced
+})
+
+test('mixed position: recipe + ingredient components both resolve', () => {
+  const m = compMenu([recipeComp(sauceRecipe(), 1), ingredientComp(1)])
+  const r = aggregatePurchasing([{ menu: m, count: 50 }], [], DEFAULT_CALC_CONFIG, [GRAMM, STK])
+  const names = r.lines.map((l) => l.ingredient_name).sort()
+  assert.deepEqual(names, ['Poularde', 'Sahne'])
+  const p = buildProductionPlan([{ menu: m, count: 50 }], DEFAULT_CALC_CONFIG)
+  assert.equal(p.batches.length, 1) // only the sauce is pre-produced
+  assert.equal(p.batches[0].portions_needed, 50)
+})
+
+test('components take precedence over the legacy recipe_id', () => {
+  // menu_item has BOTH a legacy recipe AND components → components win.
+  const m: CalcMenu = {
+    id: 'm-x', menu_code: 'MEN-X', menu_name: 'X',
+    menu_items: [{
+      id: 'mi-x', name: 'Teller', recipe_id: 'r1', recipe: recipe(),
+      components: [ingredientComp(2)],
+    }],
+  }
+  const r = aggregatePurchasing([{ menu: m, count: 10 }], [], DEFAULT_CALC_CONFIG, [GRAMM, STK])
+  assert.equal(r.lines.length, 1)
+  assert.equal(r.lines[0].ingredient_name, 'Poularde') // not "Mehl" from the legacy recipe
+  assert.equal(r.lines[0].quantity, 20) // 2 × 10
+})
+
+test('explodeMenuRows falls back to legacy recipe_id when no components', () => {
+  const { recipeDemands, ingredientDemands, warnings } = explodeMenuRows([{ menu: menu(recipe()), count: 30 }])
+  assert.equal(recipeDemands.length, 1)
+  assert.equal(recipeDemands[0].portions, 30)
+  assert.equal(ingredientDemands.length, 0)
+  assert.equal(warnings.length, 0)
+})
+
+// ── V5 Positions-Katalog: buildCalcMenus (menu_positions → CalcMenu) ──
+
+test('buildCalcMenus uses menu_positions (sorted) and carries components', () => {
+  const raw: RawCalcMenu[] = [{
+    id: 'm1', menu_code: 'M1', menu_name: 'M1',
+    menu_items: [],
+    menu_positions: [
+      { id: 'mp2', sort_order: 2, position: { id: 'p2', name: 'Zweite', components: [ingredientComp(1)] } },
+      { id: 'mp1', sort_order: 1, position: { id: 'p1', name: 'Erste', components: [recipeComp(sauceRecipe(), 1)] } },
+    ],
+  }]
+  const out = buildCalcMenus(raw)
+  assert.equal(out.length, 1)
+  assert.equal(out[0].menu_items.length, 2)
+  assert.equal(out[0].menu_items[0].name, 'Erste') // sort_order 1 first
+  assert.equal(out[0].menu_items[1].name, 'Zweite')
+  assert.equal(out[0].menu_items[0].recipe_id, null)
+  assert.equal(out[0].menu_items[0].components?.length, 1)
+})
+
+test('buildCalcMenus falls back to legacy menu_items when no positions', () => {
+  const raw: RawCalcMenu[] = [{
+    id: 'm2', menu_code: 'M2', menu_name: 'M2',
+    menu_items: [{ id: 'mi', name: 'Legacy', recipe_id: 'r1', recipe: recipe(), components: [] }],
+    menu_positions: [],
+  }]
+  const out = buildCalcMenus(raw)
+  assert.equal(out[0].menu_items.length, 1)
+  assert.equal(out[0].menu_items[0].name, 'Legacy')
+  assert.equal(out[0].menu_items[0].recipe_id, 'r1')
+})
+
+test('buildCalcMenus → aggregatePurchasing end-to-end (positions path)', () => {
+  const raw: RawCalcMenu[] = [{
+    id: 'm3', menu_code: 'M3', menu_name: 'M3',
+    menu_items: [],
+    menu_positions: [
+      { id: 'mp', sort_order: 0, position: { id: 'p', name: 'Teller', components: [recipeComp(sauceRecipe(), 1)] } },
+    ],
+  }]
+  const menus = buildCalcMenus(raw)
+  const r = aggregatePurchasing([{ menu: menus[0], count: 100 }], [], DEFAULT_CALC_CONFIG, [GRAMM])
+  assert.equal(r.lines.length, 1)
+  assert.equal(r.lines[0].ingredient_name, 'Sahne')
+  assert.equal(Math.round(r.lines[0].required_quantity), 5000)
 })

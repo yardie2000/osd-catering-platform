@@ -95,8 +95,13 @@ export const batchService = {
 
     const ingredientIds = new Set<string>()
     for (const m of menus)
-      for (const mi of m.menu_items)
+      for (const mi of m.menu_items) {
         if (mi.recipe) for (const ri of mi.recipe.recipe_ingredients) ingredientIds.add(ri.ingredient_id)
+        for (const c of mi.components ?? []) {
+          if (c.ingredient_id) ingredientIds.add(c.ingredient_id)
+          if (c.recipe) for (const ri of c.recipe.recipe_ingredients) ingredientIds.add(ri.ingredient_id)
+        }
+      }
 
     const supplierProducts = await purchasingService.getSupplierProducts([...ingredientIds])
 

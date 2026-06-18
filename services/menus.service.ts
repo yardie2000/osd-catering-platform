@@ -1,5 +1,17 @@
 import { supabase } from '@/lib/supabase/client'
-import type { Menu, MenuInsert, MenuUpdate, MenuWithItems, MenuItemInsert, MenuItemUpdate } from '@/types'
+import type {
+  Menu, MenuInsert, MenuUpdate, MenuWithItems, MenuItemInsert, MenuItemUpdate,
+  MenuPositionWithPosition,
+} from '@/types'
+
+export type MenuItemComponentInput = {
+  menu_item_id:  string
+  recipe_id?:    string | null
+  ingredient_id?: string | null
+  quantity:      number
+  unit_id?:      string | null
+  sort_order?:   number
+}
 
 export const menusService = {
   async getAll(options?: { active?: boolean; search?: string; category?: string }): Promise<Menu[]> {
@@ -23,7 +35,13 @@ export const menusService = {
         *,
         menu_items(
           *,
-          recipe:recipes(*)
+          recipe:recipes(*),
+          components:menu_item_components(
+            id, menu_item_id, recipe_id, ingredient_id, quantity, unit_id, sort_order,
+            recipe:recipes(id, recipe_code, name),
+            ingredient:ingredients(id, ingredient_code, name),
+            unit:units!menu_item_components_unit_id_fkey(id, unit_code, name, short_name)
+          )
         )
       `)
       .eq('id', id)
@@ -144,6 +162,67 @@ export const menusService = {
   async removeItem(menuItemId: string): Promise<void> {
     const { error } = await supabase.from('menu_items').delete().eq('id', menuItemId)
     if (error) throw error
+  },
+
+  // ── Komponenten einer Position (V5 Stücklisten-Modell) ──────
+  async addComponent(c: MenuItemComponentInput): Promise<void> {
+    const { error } = await supabase.from('menu_item_components').insert({
+      menu_item_id:  c.menu_item_id,
+      recipe_id:     c.recipe_id ?? null,
+      ingredient_id: c.ingredient_id ?? null,
+      quantity:      c.quantity,
+      unit_id:       c.unit_id ?? null,
+      sort_order:    c.sort_order ?? 0,
+    })
+    if (error) throw error
+  },
+
+  async updateComponent(id: string, patch: { quantity?: number; unit_id?: string | null }): Promise<void> {
+    const { error } = await supabase.from('menu_item_components').update(patch).eq('id', id)
+    if (error) throw error
+  },
+
+  async removeComponent(id: string): Promise<void> {
+    const { error } = await supabase.from('menu_item_components').delete().eq('id', id)
+    if (error) throw error
+  },
+
+  // ── menu_positions (Position ↔ Menü, V5 Katalog) ────────────
+  async getMenuPositions(menuId: string): Promise<MenuPositionWithPosition[]> {
+    const { data, error } = await supabase
+      .from('menu_positions')
+      .select(`
+        id, menu_id, position_id, sort_order, price_override, created_at,
+        position:positions(id, position_code, name, description, dietary, allergens, default_price, notes, created_at, updated_at)
+      `)
+      .eq('menu_id', menuId)
+      .order('sort_order', { ascending: true })
+    if (error) throw error
+    return (data ?? []) as unknown as MenuPositionWithPosition[]
+  },
+
+  async addPositionToMenu(menuId: string, positionId: string, sortOrder: number): Promise<void> {
+    const { error } = await supabase
+      .from('menu_positions')
+      .insert({ menu_id: menuId, position_id: positionId, sort_order: sortOrder })
+    if (error) throw error
+  },
+
+  async removeMenuPosition(id: string): Promise<void> {
+    const { error } = await supabase.from('menu_positions').delete().eq('id', id)
+    if (error) throw error
+  },
+
+  async setMenuPositionPrice(id: string, price: number | null): Promise<void> {
+    const { error } = await supabase.from('menu_positions').update({ price_override: price }).eq('id', id)
+    if (error) throw error
+  },
+
+  async reorderMenuPositions(items: { id: string; sort_order: number }[]): Promise<void> {
+    for (const { id, sort_order } of items) {
+      const { error } = await supabase.from('menu_positions').update({ sort_order }).eq('id', id)
+      if (error) throw error
+    }
   },
 
   async getCategories(): Promise<string[]> {

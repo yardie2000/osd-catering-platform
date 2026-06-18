@@ -143,6 +143,48 @@ export const menuItemRowSchema = z.object({
   sort_order:  z.coerce.number().int().nonnegative().optional().default(0),
 })
 
+// ── allergens coercer (comma/semicolon string OR array → string[]) ──────────
+const allergenList = z.union([z.string(), z.array(z.string())]).nullish().transform((v) => {
+  if (v == null) return [] as string[]
+  const arr = Array.isArray(v) ? v : String(v).split(/[,;]/)
+  return arr.map((s) => s.trim()).filter(Boolean)
+})
+
+// ── positions sheet (V5 — geteilter Katalog) ──────────────
+// Stammdaten einer Position; position_code ist der stabile Matching-Schlüssel.
+// Columns: position_code, name, description, dietary, allergens, default_price
+export const positionRowSchema = z.object({
+  position_code: z.string().min(1, 'position_code is required'),
+  name:          z.string().min(1, 'name is required'),
+  description:   z.string().optional().nullable(),
+  dietary:       z.string().optional().nullable(),
+  allergens:     allergenList,
+  default_price: germanNumeric,
+})
+
+// ── menu_positions sheet (V5) ─────────────────────────────
+// Zuordnung Menü ↔ Position; beide über ihre Codes referenziert.
+// Columns: menu_code, position_code, sort_order, price_override
+export const menuPositionRowSchema = z.object({
+  menu_code:      z.string().min(1, 'menu_code is required'),
+  position_code:  z.string().min(1, 'position_code is required'),
+  sort_order:     z.coerce.number().int().nonnegative().optional().default(0),
+  price_override: germanNumeric,
+})
+
+// ── position_components sheet (V5) ────────────────────────
+// Bestandteile einer Position (analog menu_item_components, auf position_code bezogen).
+// Genau eines von recipe_code / ingredient_code muss gesetzt sein (im Importer geprüft).
+// Columns: position_code, recipe_code, ingredient_code, quantity, unit_code, sort_order
+export const positionComponentRowSchema = z.object({
+  position_code:   z.string().min(1, 'position_code is required'),
+  recipe_code:     z.string().optional().nullable(),
+  ingredient_code: z.string().optional().nullable(),
+  quantity:        germanNumeric,
+  unit_code:       z.string().optional().nullable(),
+  sort_order:      z.coerce.number().int().nonnegative().optional().default(0),
+})
+
 type AnySchema = z.ZodTypeAny
 
 export function validateRows<T>(

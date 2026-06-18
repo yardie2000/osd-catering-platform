@@ -54,6 +54,43 @@ export type Database = {
           { foreignKeyName: 'menu_items_recipe_id_fkey'; columns: ['recipe_id']; referencedRelation: 'recipes'; referencedColumns: ['id'] }
         ]
       }
+      menu_item_components: {
+        Row:           MenuItemComponent
+        Insert:        MenuItemComponentInsert
+        Update:        MenuItemComponentUpdate
+        Relationships: [
+          { foreignKeyName: 'menu_item_components_menu_item_id_fkey';  columns: ['menu_item_id'];  referencedRelation: 'menu_items';  referencedColumns: ['id'] },
+          { foreignKeyName: 'menu_item_components_recipe_id_fkey';     columns: ['recipe_id'];     referencedRelation: 'recipes';     referencedColumns: ['id'] },
+          { foreignKeyName: 'menu_item_components_ingredient_id_fkey'; columns: ['ingredient_id']; referencedRelation: 'ingredients'; referencedColumns: ['id'] },
+          { foreignKeyName: 'menu_item_components_unit_id_fkey';       columns: ['unit_id'];       referencedRelation: 'units';       referencedColumns: ['id'] }
+        ]
+      }
+      positions: {
+        Row:           Position
+        Insert:        PositionInsert
+        Update:        PositionUpdate
+        Relationships: []
+      }
+      menu_positions: {
+        Row:           MenuPosition
+        Insert:        MenuPositionInsert
+        Update:        MenuPositionUpdate
+        Relationships: [
+          { foreignKeyName: 'menu_positions_menu_id_fkey';     columns: ['menu_id'];     referencedRelation: 'menus';     referencedColumns: ['id'] },
+          { foreignKeyName: 'menu_positions_position_id_fkey';  columns: ['position_id'];  referencedRelation: 'positions';  referencedColumns: ['id'] }
+        ]
+      }
+      position_components: {
+        Row:           PositionComponent
+        Insert:        PositionComponentInsert
+        Update:        PositionComponentUpdate
+        Relationships: [
+          { foreignKeyName: 'position_components_position_id_fkey';   columns: ['position_id'];   referencedRelation: 'positions';   referencedColumns: ['id'] },
+          { foreignKeyName: 'position_components_recipe_id_fkey';     columns: ['recipe_id'];     referencedRelation: 'recipes';     referencedColumns: ['id'] },
+          { foreignKeyName: 'position_components_ingredient_id_fkey'; columns: ['ingredient_id']; referencedRelation: 'ingredients'; referencedColumns: ['id'] },
+          { foreignKeyName: 'position_components_unit_id_fkey';       columns: ['unit_id'];       referencedRelation: 'units';       referencedColumns: ['id'] }
+        ]
+      }
       supplier_products: {
         Row:           SupplierProduct
         Insert:        SupplierProductInsert
@@ -292,9 +329,113 @@ export type MenuItemInsert = Omit<MenuItem, 'id' | 'allergens' | 'recipe_id'> & 
 }
 export type MenuItemUpdate = Partial<MenuItemInsert>
 
-// menu line with its (optional) joined recipe — used by menu detail
+// ── menu_item_components (V5 Stücklisten-Modell) ──────────────
+// Bestandteile einer Position: je Zeile ein (vorproduziertes) Rezept ODER eine
+// zugekaufte/rohe Zutat, mit Menge pro Portion. Genau eines von recipe_id /
+// ingredient_id ist gesetzt. unit_id NULL bei Rezept-Komponente = Portionen.
+export type MenuItemComponent = {
+  id:            string
+  menu_item_id:  string
+  recipe_id:     string | null
+  ingredient_id: string | null
+  quantity:      number
+  unit_id:       string | null
+  sort_order:    number
+}
+
+export type MenuItemComponentWithRefs = MenuItemComponent & {
+  recipe:     { id: string; recipe_code: string; name: string } | null
+  ingredient: { id: string; ingredient_code: string; name: string } | null
+  unit:       { id: string; unit_code: string; name: string; short_name: string | null } | null
+}
+
+export type MenuItemComponentInsert = {
+  menu_item_id:   string
+  recipe_id?:     string | null
+  ingredient_id?: string | null
+  quantity:       number
+  unit_id?:       string | null
+  sort_order?:    number
+}
+export type MenuItemComponentUpdate = Partial<Omit<MenuItemComponentInsert, 'menu_item_id'>>
+
+// menu line with its (optional) joined recipe + its components — used by menu detail
 export type MenuItemWithDetails = MenuItem & {
-  recipe: Recipe | null
+  recipe:      Recipe | null
+  components?: MenuItemComponentWithRefs[]
+}
+
+// ── positions (geteilter Katalog, V5) ─────────────────────────
+export type Position = {
+  id:            string
+  position_code: string | null
+  name:          string
+  description:   string | null
+  dietary:       string | null
+  allergens:     string[]
+  default_price: number | null
+  notes:         string | null
+  created_at:    string
+  updated_at:    string
+}
+export type PositionInsert = {
+  position_code?: string | null
+  name:           string
+  description?:   string | null
+  dietary?:       string | null
+  allergens?:     string[]
+  default_price?: number | null
+  notes?:         string | null
+}
+export type PositionUpdate = Partial<PositionInsert>
+
+export type MenuPosition = {
+  id:             string
+  menu_id:        string
+  position_id:    string
+  sort_order:     number
+  price_override: number | null
+  created_at:     string
+}
+export type MenuPositionInsert = {
+  menu_id:        string
+  position_id:    string
+  sort_order?:    number
+  price_override?: number | null
+}
+export type MenuPositionUpdate = Partial<Omit<MenuPositionInsert, 'menu_id' | 'position_id'>>
+
+export type PositionComponent = {
+  id:            string
+  position_id:   string
+  recipe_id:     string | null
+  ingredient_id: string | null
+  quantity:      number
+  unit_id:       string | null
+  sort_order:    number
+}
+export type PositionComponentInsert = {
+  position_id:    string
+  recipe_id?:     string | null
+  ingredient_id?: string | null
+  quantity:       number
+  unit_id?:       string | null
+  sort_order?:    number
+}
+export type PositionComponentUpdate = Partial<Omit<PositionComponentInsert, 'position_id'>>
+
+export type PositionComponentWithRefs = PositionComponent & {
+  recipe:     { id: string; recipe_code: string; name: string } | null
+  ingredient: { id: string; ingredient_code: string; name: string } | null
+  unit:       { id: string; unit_code: string; name: string; short_name: string | null } | null
+}
+
+export type PositionWithComponents = Position & {
+  components: PositionComponentWithRefs[]
+}
+
+export type MenuPositionWithPosition = MenuPosition & {
+  position: Position | null
 }
 
 // ── supplier_products ─────────────────────────────────────
