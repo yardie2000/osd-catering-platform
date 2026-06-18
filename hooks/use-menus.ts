@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { menusService } from '@/services/menus.service'
+import { menusService, type MenuItemComponentInput } from '@/services/menus.service'
+import { POSITIONS_KEY } from '@/hooks/use-positions'
 import type { MenuInsert, MenuUpdate } from '@/types'
 
 export const MENUS_KEY = ['menus'] as const
@@ -94,6 +95,82 @@ export function useRemoveMenuItem(menuId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (menuItemId: string) => menusService.removeItem(menuItemId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [...MENUS_KEY, menuId] }),
+  })
+}
+
+// ── menu_positions (Position ↔ Menü, V5 Katalog) ─────────────
+export function useMenuPositions(menuId: string) {
+  return useQuery({
+    queryKey: [...MENUS_KEY, menuId, 'positions'],
+    queryFn: () => menusService.getMenuPositions(menuId),
+    enabled: !!menuId,
+  })
+}
+
+export function useAddPositionToMenu(menuId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ positionId, sortOrder }: { positionId: string; sortOrder: number }) =>
+      menusService.addPositionToMenu(menuId, positionId, sortOrder),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [...MENUS_KEY, menuId, 'positions'] })
+      qc.invalidateQueries({ queryKey: POSITIONS_KEY })
+    },
+  })
+}
+
+export function useRemoveMenuPosition(menuId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => menusService.removeMenuPosition(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [...MENUS_KEY, menuId, 'positions'] })
+      qc.invalidateQueries({ queryKey: POSITIONS_KEY })
+    },
+  })
+}
+
+export function useSetMenuPositionPrice(menuId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, price }: { id: string; price: number | null }) =>
+      menusService.setMenuPositionPrice(id, price),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [...MENUS_KEY, menuId, 'positions'] }),
+  })
+}
+
+export function useReorderMenuPositions(menuId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (items: { id: string; sort_order: number }[]) =>
+      menusService.reorderMenuPositions(items),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [...MENUS_KEY, menuId, 'positions'] }),
+  })
+}
+
+// ── Komponenten einer Position (V5 Stücklisten-Modell) ────────
+export function useAddMenuItemComponent(menuId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (component: MenuItemComponentInput) => menusService.addComponent(component),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [...MENUS_KEY, menuId] }),
+  })
+}
+
+export function useUpdateMenuItemComponent(menuId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: { quantity?: number; unit_id?: string | null } }) =>
+      menusService.updateComponent(id, patch),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [...MENUS_KEY, menuId] }),
+  })
+}
+
+export function useRemoveMenuItemComponent(menuId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => menusService.removeComponent(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: [...MENUS_KEY, menuId] }),
   })
 }

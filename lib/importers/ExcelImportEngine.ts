@@ -8,16 +8,20 @@ import { importSuppliers } from './SupplierImporter'
 import { importRecipes, importRecipeIngredients } from './RecipeImporter'
 import { importMenus } from './MenuImporter'
 import { importMenuItems } from './MenuItemImporter'
+import { importPositions, importMenuPositions, importPositionComponents } from './PositionImporter'
 
 // Sheet name aliases — case-insensitive, spaces/dashes → underscores
 const SHEET_MAP = {
-  units:              ['units', 'einheiten', 'unit'],
-  ingredients:        ['ingredients', 'zutaten', 'ingredient'],
-  suppliers:          ['suppliers', 'lieferanten', 'supplier'],
-  recipes:            ['recipes', 'rezepte', 'recipe'],
-  recipe_ingredients: ['recipe_ingredients', 'rezept_zutaten', 'recipe_zutaten'],
-  menus:              ['menus', 'menüs', 'menu'],
-  menu_items:         ['menu_items', 'menü_items', 'menu_positionen'],
+  units:               ['units', 'einheiten', 'unit'],
+  ingredients:         ['ingredients', 'zutaten', 'ingredient'],
+  suppliers:           ['suppliers', 'lieferanten', 'supplier'],
+  recipes:             ['recipes', 'rezepte', 'recipe'],
+  recipe_ingredients:  ['recipe_ingredients', 'rezept_zutaten', 'recipe_zutaten'],
+  menus:               ['menus', 'menüs', 'menu'],
+  menu_items:          ['menu_items', 'menü_items', 'menu_positionen'],
+  positions:           ['positions', 'positionen', 'position'],
+  menu_positions:      ['menu_positions', 'menü_positions', 'menu_position'],
+  position_components: ['position_components', 'positions_komponenten', 'position_komponenten'],
 } as const
 
 function findSheet(workbook: XLSX.WorkBook, aliases: readonly string[]): XLSX.WorkSheet | null {
@@ -82,12 +86,17 @@ export class ExcelImportEngine {
       const recipeIngredientRows = sheetToRows(findSheet(workbook, SHEET_MAP.recipe_ingredients))
       const menuRows             = sheetToRows(findSheet(workbook, SHEET_MAP.menus), 0)
       const menuItemRows         = sheetToRows(findSheet(workbook, SHEET_MAP.menu_items), 0)
+      const positionRows         = sheetToRows(findSheet(workbook, SHEET_MAP.positions), 0)
+      const menuPositionRows     = sheetToRows(findSheet(workbook, SHEET_MAP.menu_positions), 0)
+      const positionComponentRows = sheetToRows(findSheet(workbook, SHEET_MAP.position_components), 0)
 
       logger.info(
         `Rows found — units:${unitRows.length} ingredients:${ingredientRows.length} ` +
         `suppliers:${supplierRows.length} recipes:${recipeRows.length} ` +
         `recipe_ingredients:${recipeIngredientRows.length} ` +
-        `menus:${menuRows.length} menu_items:${menuItemRows.length}`
+        `menus:${menuRows.length} menu_items:${menuItemRows.length} ` +
+        `positions:${positionRows.length} menu_positions:${menuPositionRows.length} ` +
+        `position_components:${positionComponentRows.length}`
       )
 
       // ── Import in dependency order ─────────────────────────
@@ -131,30 +140,56 @@ export class ExcelImportEngine {
           )
         : { inserted: 0, skipped: 0, errors: 0, linked: 0, unlinked: 0 }
 
+      // 8. Positions (V5 geteilter Katalog) — by position_code
+      const positionResult = positionRows.length > 0
+        ? await importPositions(this.client, positionRows, logger, options.dryRun)
+        : { inserted: 0, updated: 0, skipped: 0, errors: 0, positionCodeMap: new Map<string, string>() }
+
+      // 9. Menu Positions (depends on menuMap + positionCodeMap)
+      const menuPositionResult = menuPositionRows.length > 0
+        ? await importMenuPositions(
+            this.client, menuPositionRows, logger, options.dryRun,
+            menuResult.menuMap, positionResult.positionCodeMap
+          )
+        : { inserted: 0, updated: 0, skipped: 0, errors: 0 }
+
+      // 10. Position Components (depends on positionCodeMap + recipeCodeMap; resolves ingredients/units via DB)
+      const positionComponentResult = positionComponentRows.length > 0
+        ? await importPositionComponents(
+            this.client, positionComponentRows, logger, options.dryRun,
+            positionResult.positionCodeMap, recipeResult.recipeCodeMap
+          )
+        : { inserted: 0, skipped: 0, errors: 0 }
+
       // ── Aggregate counts ───────────────────────────────────
       const totalInserted =
         unitResult.inserted + ingredientResult.inserted + supplierResult.inserted +
         recipeResult.inserted + riResult.inserted +
-        menuResult.inserted + menuItemResult.inserted
+        menuResult.inserted + menuItemResult.inserted +
+        positionResult.inserted + menuPositionResult.inserted + positionComponentResult.inserted
 
       const totalUpdated =
         unitResult.updated + ingredientResult.updated + supplierResult.updated +
-        recipeResult.updated + menuResult.updated
+        recipeResult.updated + menuResult.updated +
+        positionResult.updated + menuPositionResult.updated
 
       const totalSkipped =
         unitResult.skipped + ingredientResult.skipped + supplierResult.skipped +
         recipeResult.skipped + riResult.skipped +
-        menuResult.skipped + menuItemResult.skipped
+        menuResult.skipped + menuItemResult.skipped +
+        positionResult.skipped + menuPositionResult.skipped + positionComponentResult.skipped
 
       const totalErrors =
         unitResult.errors + ingredientResult.errors + supplierResult.errors +
         recipeResult.errors + riResult.errors +
-        menuResult.errors + menuItemResult.errors
+        menuResult.errors + menuItemResult.errors +
+        positionResult.errors + menuPositionResult.errors + positionComponentResult.errors
 
       const totalRows =
         unitRows.length + ingredientRows.length + supplierRows.length +
         recipeRows.length + recipeIngredientRows.length +
-        menuRows.length + menuItemRows.length
+        menuRows.length + menuItemRows.length +
+        positionRows.length + menuPositionRows.length + positionComponentRows.length
 
       const warnings = logger.getLogs().filter((l) => l.severity === 'warning').length
 
@@ -171,6 +206,9 @@ export class ExcelImportEngine {
           `Recipe Ingredients imported:${riResult.inserted}`,
           `Menus imported:             ${menuResult.inserted + menuResult.updated}`,
           `Menu Items imported:        ${menuItemResult.inserted}`,
+          `Positions imported:         ${positionResult.inserted + positionResult.updated}`,
+          `Menu Positions imported:    ${menuPositionResult.inserted}`,
+          `Position Components imported:${positionComponentResult.inserted}`,
           `Created records:            ${totalInserted}`,
           `Updated records:            ${totalUpdated}`,
           `Warnings:                   ${warnings}`,

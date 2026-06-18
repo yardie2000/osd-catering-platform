@@ -8,6 +8,7 @@ import {
   Carrot,
   BookOpen,
   UtensilsCrossed,
+  Layers,
   Upload,
   ShieldCheck,
   BarChart3,
@@ -31,6 +32,7 @@ const nav: NavEntry[] = [
     label: 'Kernprozess',
     children: [
       { label: 'Menüs',       href: '/master-data/menus',        icon: UtensilsCrossed },
+      { label: 'Positionen',  href: '/master-data/positions',    icon: Layers },
       { label: 'Rezepte',     href: '/master-data/recipes',      icon: BookOpen },
       { label: 'Zutaten',     href: '/master-data/ingredients',  icon: Carrot },
       { label: 'Einheiten',   href: '/master-data/units',        icon: Ruler },

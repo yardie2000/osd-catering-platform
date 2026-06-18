@@ -4,6 +4,7 @@ import {
   classifyUnit,
   applyFactors,
   asConfigForPlan,
+  explodeMenuRows,
   type CalcConfig,
   type CalcMenu,
   type BaseSource,
@@ -71,31 +72,21 @@ export function buildProductionPlan(
     menus: Set<string>
   }
   const byRecipe = new Map<string, Acc>()
-  const warnings: ProductionWarning[] = []
-  const warnedNoRecipe = new Set<string>()
   const fallback = cfg.defaultBasePortions > 0 ? cfg.defaultBasePortions : 1
 
-  for (const { menu, count } of rows) {
-    if (!count || count <= 0) continue
-    const seen = new Set<string>()
-    for (const item of menu.menu_items) {
-      if (!item.recipe || !item.recipe_id) {
-        if (!warnedNoRecipe.has(item.id)) {
-          warnings.push({ kind: 'no_recipe', menu: menu.menu_name, detail: item.name })
-          warnedNoRecipe.add(item.id)
-        }
-        continue
-      }
-      if (seen.has(item.recipe_id)) continue
-      seen.add(item.recipe_id)
-
-      const existing = byRecipe.get(item.recipe_id)
-      if (existing) {
-        existing.portions += count
-        existing.menus.add(menu.menu_name)
-      } else {
-        byRecipe.set(item.recipe_id, { recipe: item.recipe, portions: count, menus: new Set([menu.menu_name]) })
-      }
+  // Positionen → Rezept-Bedarf (Komponenten-Modell; Legacy-Fallback inкл.).
+  // Pre-produced recipe components are exactly what this plan lists ("Vorproduktion").
+  const { recipeDemands, warnings: explodeWarnings } = explodeMenuRows(rows)
+  const warnings: ProductionWarning[] = explodeWarnings.map(
+    (w): ProductionWarning => ({ kind: 'no_recipe', menu: w.menu, detail: w.detail }),
+  )
+  for (const d of recipeDemands) {
+    const existing = byRecipe.get(d.recipe.id)
+    if (existing) {
+      existing.portions += d.portions
+      existing.menus.add(d.menu)
+    } else {
+      byRecipe.set(d.recipe.id, { recipe: d.recipe, portions: d.portions, menus: new Set([d.menu]) })
     }
   }
 
