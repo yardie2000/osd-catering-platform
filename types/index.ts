@@ -31,7 +31,9 @@ export type ImportEntityType =
   | 'recipes'
   | 'recipe_ingredients'
   | 'menus'
-  | 'menu_items'
+  | 'positions'
+  | 'menu_positions'
+  | 'position_components'
   | 'supplier_products'
 
 export interface ImportOptions {

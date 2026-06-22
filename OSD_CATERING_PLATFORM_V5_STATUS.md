@@ -12,8 +12,10 @@ Zugehörige Specs: [Komponenten](OSD_CATERING_PLATFORM_KOMPONENTEN_SPEC.md) ·
 ## 1. Was fertig ist (live, verifiziert)
 
 **Phase 1 — Schema** ✓ · **Phase 2 — Engine** ✓ · **Phase 3 — UI (Katalog + Menü-Editor)** ✓ ·
-**Phase 4 — Dubletten-Merge + Import-Blätter** ✓ (statisch verifiziert: tsc/lint/build/Tests grün;
-Live-Smoke offen — siehe §8).
+**Phase 4 — Dubletten-Merge + Import-Blätter** ✓ **live-verifiziert** (Merge + alle 3 Import-Blätter
+inkl. Idempotenz am 2026-06-22 live durchgespielt; statisch: tsc/lint/build/Tests grün) ·
+**Phase 5 — Legacy-Cutover** ◑ Code fertig & grün (tsc/lint/build/Tests); **DROP-Migration noch vom User
+auszuführen** (siehe §5).
 
 Datenmodell-Hierarchie (aktiv):
 ```
@@ -88,10 +90,24 @@ Migrationen (in `supabase/migrations/`, alle in der Live-DB):
     aus der DB + überlagert nur die Rezept-Code-Map des Laufs). Im echten Lauf sind sie zum Zeitpunkt
     des Komponenten-Imports bereits geschrieben → werden gefunden. Als Warnung protokolliert.
 
-## 5. Phase 5 — Cutover (aufgeschoben, destruktiv)
+## 5. Phase 5 — Cutover (Code fertig; DROP-Migration vom User auszuführen)
 
-`menu_items` + `menu_item_components` entfernen, sobald nichts mehr darauf zeigt. **Nur auf
-ausdrücklichen Wunsch** — irreversibel; Legacy-Fallback schadet aktuell nicht.
+**Code-Umbau fertig & grün** (2026-06-22): alle DB-gekoppelten Legacy-Pfade entfernt —
+`menu_items`/`menu_item_components` werden nirgends mehr gelesen/geschrieben. Geändert:
+`services/purchasing.service.ts` (getMenusForCalc nur noch menu_positions),
+`lib/operations/calcMenu.ts` (Fallback raus), `services/menus.service.ts` (Legacy-Item-Methoden raus,
+getById → `Menu`), `hooks/use-menus.ts` (Legacy-Hooks raus), Importer
+(`MenuItemImporter.ts` + `menu-item-components-dialog.tsx` **gelöscht**, ExcelImportEngine/ValidationEngine
+ohne menu_items-Blatt), `types/database.ts` + `types/index.ts` (MenuItem*-Typen + Tabellen-Einträge raus),
+Settings-/Import-Hinweistexte, `tests/calc.test.ts` (Fallback-Test → „keine Positionen ⇒ leer").
+Die **Engine-Typen** `CalcMenu.menu_items` (in `aggregate.ts`/`plan.ts`) sind das interne Rechenmodell,
+**nicht** die DB-Tabelle → bewusst unverändert.
+
+**Noch offen — DROP-Migration ausführen (DESTRUKTIV, User):**
+`supabase/migrations/20260617000000_drop_legacy_menu_items.sql` im Supabase SQL-Editor laufen lassen
+**nach DB-Backup**. Sie ist selbst-sichernd (bricht ab, falls ein Menü ohne menu_positions existiert) und
+droppt dann `menu_item_components` + `menu_items`. Voraussetzung war am 2026-06-22 erfüllt (0 Menüs am Fallback).
+Reihenfolge ist gefahrlos: der Code läuft mit **und** ohne die Tabellen, also Code zuerst (gepusht), Drop danach.
 
 ## 6. Betriebs-Fakten / Gotchas (wichtig für den neuen Chat)
 
@@ -136,11 +152,12 @@ Picker, Komponenten-Dialoge, Bedarfs-Embed).
 Mehr-Datei-Läufen die Summe kosmetisch zu niedrig, einzeln je Datei verifiziert, 0 Fehler) ·
 `next build` mit Platzhalter-Env ✓ (Route `/master-data/positions` 10.3 kB inkl. Merge-Dialog).
 
-**Phase 4 Live-Smoke offen:** Der Preview-/Dev-Server-Tooling-Pfad hängt am Primär-Worktree
-(`elated-carson-…`, V4.3, ohne node_modules) — verifiziert NICHT diese Änderungen. Ein korrekt
-verorteter Dev-Server (`magical-hamilton`) spräche mit der **Live-Kunden-Supabase**, und Merge/Import
-**schreiben/löschen real**. Daher Live-Smoke dem User überlassen:
-- **Merge:** `/master-data/positions` → „Zusammenführen" an einer Dublette → Zielposition wählen →
-  bestätigen; danach: Quelle weg, Ziel trägt Menü-Zuordnungen + Komponenten, Kalkulation unverändert.
-- **Import:** Test-`.xlsx` mit Blättern `positions`/`menu_positions`/`position_components` zuerst als
-  **Testlauf** (dryRun) hochladen, dann echt; Idempotenz durch erneutes Hochladen prüfen.
+**Phase 4 Live-Smoke ✓ (2026-06-22, vom User durchgeführt):**
+- **Merge:** `/master-data/positions` → „Zusammenführen" an einer Dublette → funktioniert.
+- **Import:** Test-`.xlsx` mit allen drei Blättern (`positions`/`menu_positions`/`position_components`),
+  echte Codes (Menü `MENU_LUNCH_2026`, Rezept `SAU-003`, Zutat `ZUK-I-01`) — Testlauf + echter Import +
+  Idempotenz (erneutes Hochladen erzeugt keine Dubletten) bestätigt. Testpositionen `POS-TEST-1/2`
+  danach wieder entfernt.
+
+> Hinweis: Der Preview-/Dev-Server des Harness hängt am Primär-Worktree (`elated-carson-…`, V4.3); das
+> Live-Smoke lief im `magical-hamilton`-Worktree gegen die echte Supabase per `npm run dev`.

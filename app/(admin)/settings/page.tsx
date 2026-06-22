@@ -93,8 +93,8 @@ export default async function SettingsPage() {
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-xs">
               <span className="text-foreground">menus.menu_name</span>        <span>✓ aktiv</span>
               <span className="text-foreground">menus.menu_description</span> <span>✓ aktiv</span>
-              <span className="text-foreground">menu_items</span>             <span>✓ aktiv (ersetzt menu_recipes)</span>
-              <span className="text-foreground">menu_items.recipe_id</span>   <span>✓ aktiv (Menü-↔-Rezept-Verknüpfung)</span>
+              <span className="text-foreground">positions</span>             <span>✓ aktiv (geteilter Katalog, V5 — ersetzt menu_items)</span>
+              <span className="text-foreground">menu_positions / position_components</span><span>✓ aktiv (Menü ↔ Position ↔ Komponenten)</span>
               <span className="text-foreground">recipes / recipe_ingredients</span><span>✓ aktiv</span>
               <span className="text-foreground">supplier_products</span>      <span>✓ aktiv</span>
               <span className="text-foreground">kitchen_batches</span>        <span>✓ aktiv (V4.1 — zentrale Planungseingabe)</span>
