@@ -47,22 +47,27 @@ export const recipeSchema = z.object({
   recipe_code: z.string().min(1, 'Rezeptcode ist erforderlich'),
   name: z.string().min(1, 'Name ist erforderlich'),
   description: z.string().nullable().optional(),
-  base_portions: z.coerce.number().positive('Basisportionen müssen größer als 0 sein'),
-  yield_quantity: z.coerce.number().positive('Ertrag muss größer als 0 sein'),
-  yield_unit_id: z.string().min(1, 'Ertragseinheit ist erforderlich'),
+  // Optional: leere Felder bleiben null (kein erfundener Default). base_portions/
+  // yield_quantity → Engine nutzt Fallback; yield_pct/production_loss_pct → globale
+  // Standardwerte aus DEFAULT_CALC_CONFIG. Werte werden nur validiert, wenn gesetzt.
+  base_portions: z.number().positive('Basisportionen müssen größer als 0 sein').nullable(),
+  yield_quantity: z.number().positive('Ertrag muss größer als 0 sein').nullable(),
+  yield_unit_id: z.string().nullable().optional(),
   preparation: z.string().nullable().optional(),
   usage_notes: z.string().nullable().optional(),
   production_notes: z.string().nullable().optional(),
   shelf_life: z.string().nullable().optional(),
   scalable: z.boolean().default(true),
-  production_loss_pct: z.coerce
+  production_loss_pct: z
     .number()
     .min(0, 'Produktionsverlust darf nicht negativ sein')
-    .max(100, 'Produktionsverlust darf maximal 100 sein'),
-  yield_pct: z.coerce
+    .max(100, 'Produktionsverlust darf maximal 100 sein')
+    .nullable(),
+  yield_pct: z
     .number()
     .gt(0, 'Ausbeute muss größer als 0 sein')
-    .max(100, 'Ausbeute darf maximal 100 sein'),
+    .max(100, 'Ausbeute darf maximal 100 sein')
+    .nullable(),
   ingredients: z.array(ingredientSchema).default([]),
 })
 
@@ -81,6 +86,13 @@ function emptyToNull(value?: string | null) {
   return trimmed === '' ? null : trimmed
 }
 
+// Number input → number | null. Empty / non-numeric stays null (no fake default).
+function numOrNull(value: unknown): number | null {
+  if (value === '' || value == null) return null
+  const n = Number(value)
+  return Number.isNaN(n) ? null : n
+}
+
 export function RecipeForm({
   mode,
   recipe,
@@ -97,16 +109,16 @@ export function RecipeForm({
       recipe_code: '',
       name: '',
       description: '',
-      base_portions: 50,
-      yield_quantity: 50,
+      base_portions: null,
+      yield_quantity: null,
       yield_unit_id: '',
       preparation: '',
       usage_notes: '',
       production_notes: '',
       shelf_life: '',
       scalable: true,
-      production_loss_pct: 10,
-      yield_pct: 80,
+      production_loss_pct: null,
+      yield_pct: null,
       ingredients: [],
     },
   })
@@ -143,16 +155,16 @@ export function RecipeForm({
       recipe_code: recipe.recipe_code,
       name: recipe.name,
       description: recipe.description ?? '',
-      base_portions: recipe.base_portions ?? 50,
-      yield_quantity: recipe.yield_quantity ?? 50,
+      base_portions: recipe.base_portions,
+      yield_quantity: recipe.yield_quantity,
       yield_unit_id: recipe.yield_unit_id ?? '',
       preparation: recipe.preparation ?? '',
       usage_notes: recipe.usage_notes ?? '',
       production_notes: recipe.production_notes ?? '',
       shelf_life: recipe.shelf_life ?? '',
       scalable: recipe.scalable,
-      production_loss_pct: recipe.production_loss_pct ?? 10,
-      yield_pct: recipe.yield_pct ?? 80,
+      production_loss_pct: recipe.production_loss_pct,
+      yield_pct: recipe.yield_pct,
       ingredients: ingredientDefaults,
     })
 
@@ -167,7 +179,7 @@ export function RecipeForm({
         description: emptyToNull(values.description),
         base_portions: values.base_portions,
         yield_quantity: values.yield_quantity,
-        yield_unit_id: values.yield_unit_id,
+        yield_unit_id: values.yield_unit_id || null,
         preparation: emptyToNull(values.preparation),
         usage_notes: emptyToNull(values.usage_notes),
         production_notes: emptyToNull(values.production_notes),
@@ -264,7 +276,8 @@ export function RecipeForm({
                 id="base_portions"
                 type="number"
                 step="0.001"
-                {...register('base_portions')}
+                placeholder="leer = Standard"
+                {...register('base_portions', { setValueAs: numOrNull })}
               />
               {errors.base_portions && (
                 <p className="text-sm text-red-500">{errors.base_portions.message}</p>
@@ -277,7 +290,8 @@ export function RecipeForm({
                 id="yield_quantity"
                 type="number"
                 step="0.001"
-                {...register('yield_quantity')}
+                placeholder="leer = Standard"
+                {...register('yield_quantity', { setValueAs: numOrNull })}
               />
               {errors.yield_quantity && (
                 <p className="text-sm text-red-500">{errors.yield_quantity.message}</p>
@@ -314,12 +328,13 @@ export function RecipeForm({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="production_loss_pct">Produktionsverlust (%)</Label>
+              <Label htmlFor="production_loss_pct">Produktionsverlust (% – optional)</Label>
               <Input
                 id="production_loss_pct"
                 type="number"
                 step="0.01"
-                {...register('production_loss_pct')}
+                placeholder="Standard 10 %"
+                {...register('production_loss_pct', { setValueAs: numOrNull })}
               />
               {errors.production_loss_pct && (
                 <p className="text-sm text-red-500">
@@ -329,8 +344,14 @@ export function RecipeForm({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="yield_pct">Ausbeute (%)</Label>
-              <Input id="yield_pct" type="number" step="0.01" {...register('yield_pct')} />
+              <Label htmlFor="yield_pct">Ausbeute (% – optional)</Label>
+              <Input
+                id="yield_pct"
+                type="number"
+                step="0.01"
+                placeholder="Standard 80 %"
+                {...register('yield_pct', { setValueAs: numOrNull })}
+              />
               {errors.yield_pct && (
                 <p className="text-sm text-red-500">{errors.yield_pct.message}</p>
               )}
