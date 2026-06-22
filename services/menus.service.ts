@@ -1,17 +1,5 @@
 import { supabase } from '@/lib/supabase/client'
-import type {
-  Menu, MenuInsert, MenuUpdate, MenuWithItems, MenuItemInsert, MenuItemUpdate,
-  MenuPositionWithPosition,
-} from '@/types'
-
-export type MenuItemComponentInput = {
-  menu_item_id:  string
-  recipe_id?:    string | null
-  ingredient_id?: string | null
-  quantity:      number
-  unit_id?:      string | null
-  sort_order?:   number
-}
+import type { Menu, MenuInsert, MenuUpdate, MenuPositionWithPosition } from '@/types'
 
 export const menusService = {
   async getAll(options?: { active?: boolean; search?: string; category?: string }): Promise<Menu[]> {
@@ -28,27 +16,14 @@ export const menusService = {
     return data
   },
 
-  async getById(id: string): Promise<MenuWithItems> {
+  async getById(id: string): Promise<Menu> {
     const { data, error } = await supabase
       .from('menus')
-      .select(`
-        *,
-        menu_items(
-          *,
-          recipe:recipes(*),
-          components:menu_item_components(
-            id, menu_item_id, recipe_id, ingredient_id, quantity, unit_id, sort_order,
-            recipe:recipes(id, recipe_code, name),
-            ingredient:ingredients(id, ingredient_code, name),
-            unit:units!menu_item_components_unit_id_fkey(id, unit_code, name, short_name)
-          )
-        )
-      `)
+      .select('*')
       .eq('id', id)
-      .order('sort_order', { referencedTable: 'menu_items' })
       .single()
     if (error) throw error
-    return data as MenuWithItems
+    return data
   },
 
   async getByCode(code: string): Promise<Menu | null> {
@@ -84,106 +59,6 @@ export const menusService = {
 
   async delete(id: string): Promise<void> {
     const { error } = await supabase.from('menus').delete().eq('id', id)
-    if (error) throw error
-  },
-
-  async upsertItems(
-    menuId: string,
-    items: Omit<MenuItemInsert, 'menu_id'>[]
-  ): Promise<void> {
-    const { error: deleteError } = await supabase
-      .from('menu_items')
-      .delete()
-      .eq('menu_id', menuId)
-    if (deleteError) throw deleteError
-
-    if (items.length === 0) return
-
-    const rows = items.map((item, i) => ({
-      ...item,
-      menu_id:    menuId,
-      sort_order: item.sort_order ?? i,
-    }))
-    const { error } = await supabase.from('menu_items').insert(rows)
-    if (error) throw error
-  },
-
-  async addItem(
-    menuId: string,
-    item: {
-      name: string
-      description?: string | null
-      dietary?: string | null
-      item_price?: number | null
-      recipe_id?: string | null
-    },
-    sortOrder: number
-  ): Promise<void> {
-    const { error } = await supabase.from('menu_items').insert({
-      menu_id:     menuId,
-      name:        item.name,
-      description: item.description ?? null,
-      dietary:     item.dietary ?? null,
-      item_price:  item.item_price ?? null,
-      recipe_id:   item.recipe_id ?? null,
-      sort_order:  sortOrder,
-    })
-    if (error) throw error
-  },
-
-  async updateItem(menuItemId: string, patch: MenuItemUpdate): Promise<void> {
-    const { error } = await supabase
-      .from('menu_items')
-      .update(patch)
-      .eq('id', menuItemId)
-    if (error) throw error
-  },
-
-  // Link / change / clear the recipe behind a menu line (recipeId = null unlinks).
-  async setItemRecipe(menuItemId: string, recipeId: string | null): Promise<void> {
-    const { error } = await supabase
-      .from('menu_items')
-      .update({ recipe_id: recipeId })
-      .eq('id', menuItemId)
-    if (error) throw error
-  },
-
-  // Persist a new ordering. Lists are short, so sequential updates are fine.
-  async reorderItems(items: { id: string; sort_order: number }[]): Promise<void> {
-    for (const { id, sort_order } of items) {
-      const { error } = await supabase
-        .from('menu_items')
-        .update({ sort_order })
-        .eq('id', id)
-      if (error) throw error
-    }
-  },
-
-  async removeItem(menuItemId: string): Promise<void> {
-    const { error } = await supabase.from('menu_items').delete().eq('id', menuItemId)
-    if (error) throw error
-  },
-
-  // ── Komponenten einer Position (V5 Stücklisten-Modell) ──────
-  async addComponent(c: MenuItemComponentInput): Promise<void> {
-    const { error } = await supabase.from('menu_item_components').insert({
-      menu_item_id:  c.menu_item_id,
-      recipe_id:     c.recipe_id ?? null,
-      ingredient_id: c.ingredient_id ?? null,
-      quantity:      c.quantity,
-      unit_id:       c.unit_id ?? null,
-      sort_order:    c.sort_order ?? 0,
-    })
-    if (error) throw error
-  },
-
-  async updateComponent(id: string, patch: { quantity?: number; unit_id?: string | null }): Promise<void> {
-    const { error } = await supabase.from('menu_item_components').update(patch).eq('id', id)
-    if (error) throw error
-  },
-
-  async removeComponent(id: string): Promise<void> {
-    const { error } = await supabase.from('menu_item_components').delete().eq('id', id)
     if (error) throw error
   },
 

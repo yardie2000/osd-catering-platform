@@ -45,26 +45,6 @@ export type Database = {
         Update:        MenuUpdate
         Relationships: []
       }
-      menu_items: {
-        Row:           MenuItem
-        Insert:        MenuItemInsert
-        Update:        MenuItemUpdate
-        Relationships: [
-          { foreignKeyName: 'menu_items_menu_id_fkey';   columns: ['menu_id'];   referencedRelation: 'menus';   referencedColumns: ['id'] },
-          { foreignKeyName: 'menu_items_recipe_id_fkey'; columns: ['recipe_id']; referencedRelation: 'recipes'; referencedColumns: ['id'] }
-        ]
-      }
-      menu_item_components: {
-        Row:           MenuItemComponent
-        Insert:        MenuItemComponentInsert
-        Update:        MenuItemComponentUpdate
-        Relationships: [
-          { foreignKeyName: 'menu_item_components_menu_item_id_fkey';  columns: ['menu_item_id'];  referencedRelation: 'menu_items';  referencedColumns: ['id'] },
-          { foreignKeyName: 'menu_item_components_recipe_id_fkey';     columns: ['recipe_id'];     referencedRelation: 'recipes';     referencedColumns: ['id'] },
-          { foreignKeyName: 'menu_item_components_ingredient_id_fkey'; columns: ['ingredient_id']; referencedRelation: 'ingredients'; referencedColumns: ['id'] },
-          { foreignKeyName: 'menu_item_components_unit_id_fkey';       columns: ['unit_id'];       referencedRelation: 'units';       referencedColumns: ['id'] }
-        ]
-      }
       positions: {
         Row:           Position
         Insert:        PositionInsert
@@ -299,71 +279,6 @@ export type Menu = {
 
 export type MenuInsert = Omit<Menu, 'id' | 'created_at' | 'updated_at'>
 export type MenuUpdate = Partial<MenuInsert>
-
-export type MenuWithItems = Menu & {
-  menu_items: MenuItemWithDetails[]
-}
-
-// ── menu_items ────────────────────────────────────────────
-// V4 (live schema): each row is a standalone menu line that
-// carries its own name, description, dietary flag, allergens and
-// price, AND an OPTIONAL recipe_id linking it to a recipe.
-// recipe_id is nullable: a line may be backed by a recipe (used
-// for production scaling / purchasing) or stay standalone.
-
-export type MenuItem = {
-  id:          string
-  menu_id:     string
-  recipe_id:   string | null
-  name:        string
-  description: string | null
-  dietary:     string | null
-  item_price:  number | null
-  allergens:   string[]
-  sort_order:  number
-}
-
-export type MenuItemInsert = Omit<MenuItem, 'id' | 'allergens' | 'recipe_id'> & {
-  allergens?: string[]
-  recipe_id?: string | null
-}
-export type MenuItemUpdate = Partial<MenuItemInsert>
-
-// ── menu_item_components (V5 Stücklisten-Modell) ──────────────
-// Bestandteile einer Position: je Zeile ein (vorproduziertes) Rezept ODER eine
-// zugekaufte/rohe Zutat, mit Menge pro Portion. Genau eines von recipe_id /
-// ingredient_id ist gesetzt. unit_id NULL bei Rezept-Komponente = Portionen.
-export type MenuItemComponent = {
-  id:            string
-  menu_item_id:  string
-  recipe_id:     string | null
-  ingredient_id: string | null
-  quantity:      number
-  unit_id:       string | null
-  sort_order:    number
-}
-
-export type MenuItemComponentWithRefs = MenuItemComponent & {
-  recipe:     { id: string; recipe_code: string; name: string } | null
-  ingredient: { id: string; ingredient_code: string; name: string } | null
-  unit:       { id: string; unit_code: string; name: string; short_name: string | null } | null
-}
-
-export type MenuItemComponentInsert = {
-  menu_item_id:   string
-  recipe_id?:     string | null
-  ingredient_id?: string | null
-  quantity:       number
-  unit_id?:       string | null
-  sort_order?:    number
-}
-export type MenuItemComponentUpdate = Partial<Omit<MenuItemComponentInsert, 'menu_item_id'>>
-
-// menu line with its (optional) joined recipe + its components — used by menu detail
-export type MenuItemWithDetails = MenuItem & {
-  recipe:      Recipe | null
-  components?: MenuItemComponentWithRefs[]
-}
 
 // ── positions (geteilter Katalog, V5) ─────────────────────────
 export type Position = {

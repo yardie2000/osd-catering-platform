@@ -241,7 +241,6 @@ test('explodeMenuRows falls back to legacy recipe_id when no components', () => 
 test('buildCalcMenus uses menu_positions (sorted) and carries components', () => {
   const raw: RawCalcMenu[] = [{
     id: 'm1', menu_code: 'M1', menu_name: 'M1',
-    menu_items: [],
     menu_positions: [
       { id: 'mp2', sort_order: 2, position: { id: 'p2', name: 'Zweite', components: [ingredientComp(1)] } },
       { id: 'mp1', sort_order: 1, position: { id: 'p1', name: 'Erste', components: [recipeComp(sauceRecipe(), 1)] } },
@@ -256,22 +255,18 @@ test('buildCalcMenus uses menu_positions (sorted) and carries components', () =>
   assert.equal(out[0].menu_items[0].components?.length, 1)
 })
 
-test('buildCalcMenus falls back to legacy menu_items when no positions', () => {
+test('buildCalcMenus yields no menu_items when a menu has no positions', () => {
   const raw: RawCalcMenu[] = [{
     id: 'm2', menu_code: 'M2', menu_name: 'M2',
-    menu_items: [{ id: 'mi', name: 'Legacy', recipe_id: 'r1', recipe: recipe(), components: [] }],
     menu_positions: [],
   }]
   const out = buildCalcMenus(raw)
-  assert.equal(out[0].menu_items.length, 1)
-  assert.equal(out[0].menu_items[0].name, 'Legacy')
-  assert.equal(out[0].menu_items[0].recipe_id, 'r1')
+  assert.equal(out[0].menu_items.length, 0)
 })
 
 test('buildCalcMenus → aggregatePurchasing end-to-end (positions path)', () => {
   const raw: RawCalcMenu[] = [{
     id: 'm3', menu_code: 'M3', menu_name: 'M3',
-    menu_items: [],
     menu_positions: [
       { id: 'mp', sort_order: 0, position: { id: 'p', name: 'Teller', components: [recipeComp(sauceRecipe(), 1)] } },
     ],

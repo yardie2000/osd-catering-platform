@@ -120,29 +120,6 @@ export const menuRowSchemaV3 = z.object({
   }).optional().default(true),
 })
 
-// ── Menu Items sheet (V4 — live schema) ───────────────────
-// Standalone menu line items, each with an OPTIONAL recipe link.
-// Columns: menu_code, name, description, dietary, allergens,
-//          item_price, sort_order, recipe_code (optional)
-// recipe_code: links the line to a recipe (by recipe_code) when present;
-//              otherwise the importer falls back to an exact-unique name
-//              match, and leaves the line unlinked when neither resolves.
-// allergens: comma/semicolon-separated string (or array) → string[]
-export const menuItemRowSchema = z.object({
-  menu_code:   z.string().min(1, 'menu_code is required'),
-  name:        z.string().min(1, 'name is required'),
-  recipe_code: z.string().optional().nullable(),
-  description: z.string().optional().nullable(),
-  dietary:     z.string().optional().nullable(),
-  allergens:   z.union([z.string(), z.array(z.string())]).nullish().transform((v) => {
-    if (v == null) return [] as string[]
-    const arr = Array.isArray(v) ? v : String(v).split(/[,;]/)
-    return arr.map((s) => s.trim()).filter(Boolean)
-  }),
-  item_price:  germanNumeric,
-  sort_order:  z.coerce.number().int().nonnegative().optional().default(0),
-})
-
 // ── allergens coercer (comma/semicolon string OR array → string[]) ──────────
 const allergenList = z.union([z.string(), z.array(z.string())]).nullish().transform((v) => {
   if (v == null) return [] as string[]
