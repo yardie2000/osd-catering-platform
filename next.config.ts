@@ -1,6 +1,8 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+  // Self-contained server bundle for Docker (.next/standalone/server.js).
+  output: 'standalone',
   serverExternalPackages: ['xlsx'],
   // Pin the workspace root to this project. A stray package-lock.json in a parent
   // folder (D:\Downloads\files) otherwise makes Turbopack infer the wrong root,

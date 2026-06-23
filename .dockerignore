@@ -1,0 +1,15 @@
+# Build context excludes — keep the image small and KEEP CUSTOMER DATA / SECRETS OUT.
+node_modules
+.next
+.git
+.github
+.claude
+output
+OSD CATERING
+audit
+*.md
+.env*
+Dockerfile
+.dockerignore
+docker-compose.yml
+*.bat
