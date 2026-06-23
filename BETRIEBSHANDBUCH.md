@@ -89,9 +89,9 @@ nichts aktualisiert sich von allein.
 - SQL-Dateien aus `supabase/migrations/` im **Supabase → SQL-Editor** ausführen.
 - ⚠️ Vor strukturellen Änderungen **immer erst ein Daten-Backup** (siehe §5).
 
-### 4c. Offene Migration
-- `supabase/migrations/20260617000000_drop_legacy_menu_items.sql` (Phase-5-Cutover,
-  entfernt Alt-Tabellen) ist **noch nicht** ausgeführt. Optional, **nur nach Backup**.
+### 4c. Migrationsstand
+- Alle Migrationen inkl. **Phase-5-Cutover** (`20260617000000_drop_legacy_menu_items.sql`,
+  Alt-Tabellen entfernt) sind **ausgeführt**. Stand aktuell.
 
 ---
 
@@ -104,10 +104,22 @@ nichts aktualisiert sich von allein.
 | **Geheimschlüssel** (`.env` / `.env.local`) | 🔴 kritisch | in einen **Passwort-Manager** kopieren (NICHT in Git!) | einmalig + bei Änderung | *(festlegen)* |
 | **NAS** (Server + `.env`) | 🟡 wichtig | Synology **Hyper Backup**, Ordner `/volume3/docker/osd-catering…` mitsichern | wie NAS-Backup-Plan | NAS-Admin |
 
-**Wichtig zur Datensicherung:** Der kostenlose Supabase-Tarif erstellt **keine**
-herunterladbaren Backups. Ohne regelmäßigen Export sind die Daten bei einem Fehler
-**weg**. Empfehlung: ein kleines Export-Skript (kann eingerichtet werden, das wöchentlich
-alle Tabellen auf die NAS sichert — dann mit dem NAS-Backup mitgesichert).
+**Daten sichern — Backup-Skript (eingerichtet):** Der kostenlose Supabase-Tarif erstellt
+**keine** herunterladbaren Backups. Dafür gibt es **`scripts/backup-supabase.cjs`** (sichert
+alle Tabellen als JSON, abhängigkeitsfrei, räumt Backups > 60 Tage auf):
+
+```
+npm run backup        # oder:  node scripts/backup-supabase.cjs
+```
+→ legt `backups/<datum_zeit>/<tabelle>.json` an (Ordner ist gitignored).
+
+**Wöchentlich planen** (eine Person festlegen):
+- *Windows (lokaler PC):* Aufgabenplanung → wöchentlich → Programm `node`,
+  Argument `scripts\backup-supabase.cjs`, „Starten in" = Projektordner.
+- *Synology NAS:* DSM → Aufgabenplaner → benutzerdef. Skript →
+  `node /volume3/docker/osd-catering-platform-master/scripts/backup-supabase.cjs`
+  (Node-Paket im Paket-Zentrum installieren, falls nötig). Den `backups/`-Ordner über
+  Hyper Backup mitsichern.
 
 > Der **App-Server selbst** muss nicht gesichert werden — er ist aus dem Code (GitHub)
 > + der `.env` jederzeit neu aufsetzbar. Entscheidend sind **Daten** und **Schlüssel**.
@@ -152,10 +164,9 @@ Wer das macht, braucht Zugang zu **GitHub, Supabase, NAS und Cloudflare** (§6).
 - **Login / Zugriffsschutz nachrüsten** (empfohlen, da aktuell offen): App-Login
   (Supabase Auth) + Datenbank-Sperre, **oder** Cloudflare-Access mit Google-Login,
   **oder** ein einfaches gemeinsames Passwort.
-- **Phase 5 Cutover** ausführen (Alt-Tabellen löschen, Migration vorhanden).
 - Größere V5-Roadmap (siehe `OSD_CATERING_PLATFORM_V5_SPEC.md`): Import-Review,
   Matching-Center, Lieferanten-/Bestelllogik, Mausclick-Import.
-- **Automatisches Daten-Backup** einrichten.
+- **Wöchentliches Daten-Backup einplanen** (Skript vorhanden, siehe §5).
 
 **Weitere Dokumente im Repo:** `DEPLOY.md` (NAS-Deployment), `CLOUDFLARE.md`
 (externer Zugang), `OSD_CATERING_PLATFORM_V5_SPEC.md` (Feature-Roadmap),
