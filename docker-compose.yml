@@ -22,3 +22,15 @@ services:
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
       NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+
+  # Cloudflare Tunnel — exposes the app at a public, access-gated HTTPS URL
+  # WITHOUT opening any router port. In the Cloudflare dashboard, point the
+  # tunnel's Public Hostname to service  http://app:3000  (same compose network).
+  # See CLOUDFLARE.md. Leave the token empty / comment this out for LAN-only.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: osd-cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - app
