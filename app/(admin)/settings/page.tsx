@@ -20,7 +20,7 @@ async function checkConnection(): Promise<{ status: ConnectionStatus; detail: st
       .from('units')
       .select('id', { head: true, count: 'exact' })
     if (error) return { status: 'error', detail: error.message }
-    return { status: 'ok', detail: 'Verbunden — Schema V4.2 aktiv' }
+    return { status: 'ok', detail: 'Verbunden - Schema V5.1 aktiv' }
   } catch (err) {
     return { status: 'error', detail: err instanceof Error ? err.message : 'Unbekannter Fehler' }
   }
@@ -39,7 +39,7 @@ export default async function SettingsPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <PageHeader title="Einstellungen" description="Plattformkonfiguration, Schema-Status und V4.2-Roadmap" />
+      <PageHeader title="Einstellungen" description="Plattformkonfiguration, Schema-Status und V5.1-Betrieb" />
       <div className="max-w-3xl space-y-6 p-4 sm:p-6 lg:p-8">
 
         {/* Connection status */}
@@ -81,12 +81,12 @@ export default async function SettingsPage() {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base">Schema-Status</CardTitle>
-              <Badge variant="success">V4.2</Badge>
+              <Badge variant="success">V5.1</Badge>
             </div>
           </CardHeader>
           <CardContent className="text-sm space-y-3 text-muted-foreground">
             <p className="text-xs">
-              Stammdaten, Rezepte und Menüs sind aktiv. In V4.2 ist die Menü-↔-Rezept-Verknüpfung
+              Stammdaten, Rezepte und Menüs sind aktiv. In V5.1 ist die Menü-↔-Rezept-Verknüpfung
               vereinheitlicht: Jede Menüzeile kann direkt in der Oberfläche mit einem Rezept verknüpft
               werden — die Grundlage für die kommenden Produktions- und Einkaufsmodule.
             </p>
@@ -108,11 +108,11 @@ export default async function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* V4.1 Operations workflow */}
+        {/* V5.1 Operations workflow */}
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Betriebsablauf (V4.1)</CardTitle>
+              <CardTitle className="text-base">Betriebsablauf (V5.1)</CardTitle>
               <Badge variant="success">Aktiv</Badge>
             </div>
           </CardHeader>

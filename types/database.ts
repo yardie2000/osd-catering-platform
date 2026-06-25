@@ -1,4 +1,4 @@
-// ── Auto-maintained TypeScript types for Supabase schema V4 ──
+// ── Auto-maintained TypeScript types for Supabase schema V5.1 ──
 
 export type Json = string | number | boolean | null | { [key: string]: Json } | Json[]
 
@@ -196,7 +196,7 @@ export type Recipe = {
   recipe_code:         string
   name:                string
   description:         string | null
-  base_portions:       number | null   // ⭐ V4.5 — Basisportionen; App erzwingt Pflicht, DB bleibt nullable
+  base_portions:       number | null   // V5.1 Basisportionen; App erzwingt Pflicht, DB bleibt nullable
   yield_quantity:      number | null
   yield_unit_id:       string | null
   preparation:         string | null
@@ -204,8 +204,8 @@ export type Recipe = {
   production_notes:    string | null
   shelf_life:          string | null
   scalable:            boolean
-  production_loss_pct: number | null   // ⭐ V4.2 — per-recipe override; null → global default
-  yield_pct:           number | null   // ⭐ V4.2 — per-recipe override; null → global default
+  production_loss_pct: number | null   // V5.1 per-recipe override; null -> global default
+  yield_pct:           number | null   // V5.1 per-recipe override; null -> global default
   created_at:          string
   updated_at:          string
 }
@@ -496,7 +496,7 @@ export type KitchenBatchWithItems = KitchenBatch & {
   kitchen_batch_items: KitchenBatchItemWithMenu[]
 }
 
-// ── supplier_articles / EK-Mapping (V5) ─────────────────────
+// ── supplier_articles / EK-Mapping (V5.1) ─────────────────────
 // (Supplier-Row-Typ ist oben definiert; hier nur Insert/Update + Artikel.)
 
 export type SupplierInsert =

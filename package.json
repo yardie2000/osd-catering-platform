@@ -1,6 +1,6 @@
 {
-  "name": "catering-platform-v4",
-  "version": "4.5.0",
+  "name": "osd-catering-platform",
+  "version": "5.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",

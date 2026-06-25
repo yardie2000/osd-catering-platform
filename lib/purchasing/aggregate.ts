@@ -1,7 +1,7 @@
 import type { SupplierProduct } from '@/types'
 
 // ─────────────────────────────────────────────────────────────────────────
-// V4.2 calculation engine — shared core.
+// V5.1 calculation engine — shared core.
 //
 // Implements the kitchen formula exactly:
 //   Required   = portionQty × PAX           (portionQty = recipeQty / base)
@@ -35,11 +35,11 @@ export type CalcRecipe = {
   id:                  string
   recipe_code:         string
   name:                string
-  base_portions:       number | null   // ⭐ V4.5 — primary portion basis (takes precedence over yield_quantity)
+  base_portions:       number | null   // V5.1 primary portion basis (takes precedence over yield_quantity)
   yield_quantity:      number | null
   production_notes:    string | null
-  production_loss_pct: number | null   // ⭐ V4.2 — per-recipe override (null → global default)
-  yield_pct:           number | null   // ⭐ V4.2 — per-recipe override (null → global default)
+  production_loss_pct: number | null   // V5.1 per-recipe override (null -> global default)
+  yield_pct:           number | null   // V5.1 per-recipe override (null -> global default)
   recipe_ingredients:  CalcRecipeIngredient[]
 }
 
@@ -64,7 +64,7 @@ export type CalcInputRow = {
   count: number      // pax of this menu
 }
 
-// 'base'  → recipe.base_portions (V4.5 canonical portion basis)
+// 'base'  → recipe.base_portions (V5.1 canonical portion basis)
 // 'yield' → recipe.yield_quantity (legacy fallback for un-migrated recipes)
 // 'notes' → parsed "<n> Portionen" from production_notes
 // 'assumed' → global default (review-worthy)
@@ -74,7 +74,7 @@ export type BaseSource = 'base' | 'yield' | 'notes' | 'assumed'
 // are never loss/yield-inflated; qualitative units ("to taste") are not orderable.
 export type UnitClass = 'mass' | 'volume' | 'count' | 'qualitative'
 
-// ⭐ V4.2 — global calculation config (Option 1: global defaults, per-recipe overridable).
+// V5.1 global calculation config (Option 1: global defaults, per-recipe overridable).
 export type CalcConfig = {
   defaultBasePortions: number   // fallback base when a recipe has no yield base
   productionLossPct:   number   // default production loss %  (Production Factor = 1 + loss/100)
@@ -187,7 +187,7 @@ export function parseBasePortions(notes: string | null): number | null {
 }
 
 // Determine the portion basis used to scale a recipe to `count` portions.
-// V4.5: base_portions (the recipe's standard portion count) is the canonical
+// V5.1: base_portions (the recipe's standard portion count) is the canonical
 // basis and takes precedence. yield_quantity stays as a legacy fallback for
 // recipes that have not been migrated to base_portions yet, then a value parsed
 // from production_notes, then the global default.

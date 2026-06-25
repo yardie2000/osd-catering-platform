@@ -159,7 +159,7 @@ export const MATCH_STATUS_LABELS: Record<MatchStatusOption, string> = {
   ignoriert: 'Ignoriert',
 }
 
-// V4.5 — kanonische Pflichtfelder der Rezeptbasis (snake_case, an Recipe-Typ ausgerichtet).
+// V5.1 — kanonische Pflichtfelder der Rezeptbasis (snake_case, an Recipe-Typ ausgerichtet).
 export const REZEPT_PFLICHTFELDER = [
   'name',
   'base_portions',
