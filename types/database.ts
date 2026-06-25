@@ -538,7 +538,9 @@ export type SupplierArticle = {
   created_at:              string
   updated_at:              string
 }
-export type SupplierArticleInsert = Omit<SupplierArticle, 'id' | 'created_at' | 'updated_at'>
+export type SupplierArticleInsert =
+  Pick<SupplierArticle, 'supplier_id'> &
+  Partial<Omit<SupplierArticle, 'id' | 'supplier_id' | 'created_at' | 'updated_at'>>
 export type SupplierArticleUpdate = Partial<SupplierArticleInsert>
 
 export type IngredientSupplierArticle = {
@@ -557,7 +559,9 @@ export type IngredientSupplierArticle = {
   created_at:                           string
   updated_at:                           string
 }
-export type IngredientSupplierArticleInsert = Omit<IngredientSupplierArticle, 'id' | 'created_at' | 'updated_at'>
+export type IngredientSupplierArticleInsert =
+  Pick<IngredientSupplierArticle, 'ingredient_id' | 'supplier_article_id'> &
+  Partial<Omit<IngredientSupplierArticle, 'id' | 'ingredient_id' | 'supplier_article_id' | 'created_at' | 'updated_at'>>
 export type IngredientSupplierArticleUpdate = Partial<IngredientSupplierArticleInsert>
 
 // Join-Formen für die Zutaten-Detailseite (EK-Abschnitt)
