@@ -1,0 +1,46 @@
+# OSD Catering — Synology-Deploy ohne lokalen Build.
+# Zieht das von GitHub Actions vorgebaute Image aus GHCR und hält es per
+# Watchtower automatisch aktuell. Nach dieser EINMALIGEN Umstellung deployt
+# sich jeder gemergte Stand von selbst — keine weitere Aktion nötig.
+#
+# Einmalig einrichten (Container Manager):
+#   1) Projekt osd-catering -> Tab "YAML Configurations" -> kompletten Inhalt
+#      durch diese Datei ersetzen -> Speichern.
+#   2) Action -> Build (zieht jetzt nur noch das Image) bzw. Up.
+# Voraussetzung: das GHCR-Package
+#   ghcr.io/yardie2000/osd-catering-platform  ist "public"
+#   (sonst Registry-Login in Container Manager nötig).
+# Die .env im Projektordner bleibt unverändert (3 Supabase-Vars + Tunnel-Token).
+
+services:
+  app:
+    image: ghcr.io/yardie2000/osd-catering-platform:latest
+    container_name: osd-catering
+    restart: unless-stopped
+    pull_policy: always
+    ports:
+      - "3000:3000"
+    environment:
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: osd-cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - app
+
+  # Prüft alle 5 Minuten auf ein neues :latest-Image und aktualisiert NUR die
+  # markierten Container (hier: app). Alte Images werden aufgeräumt.
+  watchtower:
+    image: containrrr/watchtower
+    container_name: osd-watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 300 --cleanup --label-enable
