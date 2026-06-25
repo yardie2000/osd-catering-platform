@@ -499,7 +499,9 @@ export type KitchenBatchWithItems = KitchenBatch & {
 // ── supplier_articles / EK-Mapping (V5) ─────────────────────
 // (Supplier-Row-Typ ist oben definiert; hier nur Insert/Update + Artikel.)
 
-export type SupplierInsert = Omit<Supplier, 'id' | 'created_at' | 'updated_at'>
+export type SupplierInsert =
+  Pick<Supplier, 'supplier_code' | 'name'> &
+  Partial<Omit<Supplier, 'id' | 'supplier_code' | 'name' | 'created_at' | 'updated_at'>>
 export type SupplierUpdate = Partial<SupplierInsert>
 
 export type SupplierArticle = {

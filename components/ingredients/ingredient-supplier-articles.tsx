@@ -1,15 +1,19 @@
 'use client'
 
 import { useState } from 'react'
-import { Star, ChevronDown, ChevronRight, AlertTriangle, Plus } from 'lucide-react'
+import { Star, ChevronDown, ChevronRight, AlertTriangle, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import {
   useIngredientSupplierArticles,
   useSuppliers,
   useAddSupplierArticle,
+  useSetPreferred,
+  useRemoveMapping,
+  useCreateSupplier,
 } from '@/hooks/use-supplier-articles'
 import { getErrorMessage } from '@/lib/errors'
+import { resolveSupplierLabel } from '@/lib/supplier-label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -37,7 +41,10 @@ const BASE_UNITS = ['kg', 'l', 'g', 'ml', 'Stück'] as const
 function AddArticleForm({ ingredientId, onClose }: { ingredientId: string; onClose: () => void }) {
   const { data: suppliers } = useSuppliers()
   const addArticle = useAddSupplierArticle(ingredientId)
+  const createSupplier = useCreateSupplier()
+  const saving = addArticle.isPending || createSupplier.isPending
   const [supplierId, setSupplierId] = useState('')
+  const [newSupplierName, setNewSupplierName] = useState('')
   const [name, setName] = useState('')
   const [ek, setEk] = useState('')
   const [baseUnit, setBaseUnit] = useState<string>('kg')
@@ -48,11 +55,18 @@ function AddArticleForm({ ingredientId, onClose }: { ingredientId: string; onClo
   async function submit() {
     const ekNum = Number(ek.replace(',', '.'))
     if (!supplierId) return toast.error('Bitte einen Lieferanten wählen.')
+    if (supplierId === '__new__' && !newSupplierName.trim())
+      return toast.error('Bitte den Namen des neuen Lieferanten eingeben.')
     if (!name.trim()) return toast.error('Bitte einen Artikelnamen eingeben.')
     if (!Number.isFinite(ekNum) || ekNum < 0) return toast.error('Bitte einen gültigen EK-Preis eingeben.')
     try {
+      let sid = supplierId
+      if (supplierId === '__new__') {
+        const sup = await createSupplier.mutateAsync(newSupplierName.trim())
+        sid = sup.id
+      }
       await addArticle.mutateAsync({
-        supplierId,
+        supplierId: sid,
         name: name.trim(),
         ekPerBaseUnit: ekNum,
         baseUnit,
@@ -78,8 +92,17 @@ function AddArticleForm({ ingredientId, onClose }: { ingredientId: string; onClo
               {(suppliers ?? []).map((s) => (
                 <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
               ))}
+              <SelectItem value="__new__">+ Neuer Lieferant…</SelectItem>
             </SelectContent>
           </Select>
+          {supplierId === '__new__' && (
+            <Input
+              value={newSupplierName}
+              onChange={(e) => setNewSupplierName(e.target.value)}
+              placeholder="Name des neuen Lieferanten"
+              className="mt-1"
+            />
+          )}
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Artikelname *</Label>
@@ -112,29 +135,17 @@ function AddArticleForm({ ingredientId, onClose }: { ingredientId: string; onClo
         Als bevorzugten EK-Artikel setzen
       </label>
       <div className="flex justify-end gap-2">
-        <Button variant="outline" size="sm" onClick={onClose} disabled={addArticle.isPending}>Abbrechen</Button>
-        <Button size="sm" onClick={submit} disabled={addArticle.isPending}>
-          {addArticle.isPending ? 'Speichern…' : 'Hinzufügen'}
+        <Button variant="outline" size="sm" onClick={onClose} disabled={saving}>Abbrechen</Button>
+        <Button size="sm" onClick={submit} disabled={saving}>
+          {saving ? 'Speichern…' : 'Hinzufügen'}
         </Button>
       </div>
     </div>
   )
 }
 
-// Lieferant: bevorzugt der echte (eingebettete) Name; Fallback aus dem
-// match_key-Präfix (metro:/chefs:), falls die anon-Rolle die suppliers-Zeile
-// (noch) nicht lesen darf. Sobald die anon-SELECT-Policy auf suppliers aktiv
-// ist, greift automatisch der echte Name.
-const SUPPLIER_BY_PREFIX: Record<string, string> = {
-  metro: 'METRO Deutschland',
-  chefs: 'CHEFS CULINAR',
-}
-
 function supplierLabel(article: SupplierArticleWithSupplier | null | undefined): string {
-  if (!article) return '—'
-  if (article.supplier?.name) return article.supplier.name
-  const prefix = article.match_key?.split(':')[0]
-  return (prefix && SUPPLIER_BY_PREFIX[prefix]) || '—'
+  return resolveSupplierLabel(article?.supplier?.name, article?.match_key)
 }
 
 function ekPrice(value: number | null, currency: string | null, unit: string | null) {
@@ -163,7 +174,39 @@ function MatchBadge({ type, score }: { type: string; score: number }) {
   )
 }
 
-function ArticleRow({ row, preferred }: { row: IngredientSupplierArticleJoined; preferred?: boolean }) {
+function RowActions({
+  row, onSetPreferred, onRemove, busy,
+}: {
+  row: IngredientSupplierArticleJoined
+  onSetPreferred: (id: string) => void
+  onRemove: (id: string) => void
+  busy: boolean
+}) {
+  return (
+    <div className="flex justify-end gap-0.5">
+      {!row.is_preferred && (
+        <Button variant="ghost" size="icon" title="Als bevorzugt setzen" disabled={busy}
+          onClick={() => onSetPreferred(row.id)}>
+          <Star className="h-3.5 w-3.5" />
+        </Button>
+      )}
+      <Button variant="ghost" size="icon" title="Zuordnung entfernen" disabled={busy}
+        onClick={() => onRemove(row.id)}>
+        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+      </Button>
+    </div>
+  )
+}
+
+function ArticleRow({
+  row, preferred, onSetPreferred, onRemove, busy,
+}: {
+  row: IngredientSupplierArticleJoined
+  preferred?: boolean
+  onSetPreferred: (id: string) => void
+  onRemove: (id: string) => void
+  busy: boolean
+}) {
   const a = row.supplier_article
   if (!a) return null
   const gebinde = [a.content_quantity, a.content_unit].filter(Boolean).join(' ')
@@ -198,14 +241,38 @@ function ArticleRow({ row, preferred }: { row: IngredientSupplierArticleJoined; 
         {preferred && <Badge variant="success" className="mr-1 text-[10px] px-1.5">Bevorzugt</Badge>}
         <MatchBadge type={row.match_type} score={row.match_score} />
       </TableCell>
+      <TableCell>
+        <RowActions row={row} onSetPreferred={onSetPreferred} onRemove={onRemove} busy={busy} />
+      </TableCell>
     </TableRow>
   )
 }
 
 export function IngredientSupplierArticles({ ingredientId }: { ingredientId: string }) {
   const { data, isLoading } = useIngredientSupplierArticles(ingredientId)
+  const setPreferred = useSetPreferred(ingredientId)
+  const removeMapping = useRemoveMapping(ingredientId)
   const [showReview, setShowReview] = useState(false)
   const [showAdd, setShowAdd] = useState(false)
+  const busy = setPreferred.isPending || removeMapping.isPending
+
+  async function handleSetPreferred(id: string) {
+    try {
+      await setPreferred.mutateAsync(id)
+      toast.success('Als bevorzugt gesetzt')
+    } catch (e) {
+      toast.error(getErrorMessage(e))
+    }
+  }
+  async function handleRemove(id: string) {
+    if (!window.confirm('Diese Lieferantenzuordnung entfernen?')) return
+    try {
+      await removeMapping.mutateAsync(id)
+      toast.success('Zuordnung entfernt')
+    } catch (e) {
+      toast.error(getErrorMessage(e))
+    }
+  }
 
   const rows = data ?? []
   const secure = rows.filter((r) => !r.needs_review)
@@ -264,11 +331,19 @@ export function IngredientSupplierArticles({ ingredientId }: { ingredientId: str
                     <TableHead>EK (netto)</TableHead>
                     <TableHead className="text-right">MwSt</TableHead>
                     <TableHead>Match</TableHead>
+                    <TableHead className="text-right">Aktionen</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {secure.map((r) => (
-                    <ArticleRow key={r.id} row={r} preferred={r.is_preferred} />
+                    <ArticleRow
+                      key={r.id}
+                      row={r}
+                      preferred={r.is_preferred}
+                      onSetPreferred={handleSetPreferred}
+                      onRemove={handleRemove}
+                      busy={busy}
+                    />
                   ))}
                 </TableBody>
               </Table>
@@ -298,6 +373,7 @@ export function IngredientSupplierArticles({ ingredientId }: { ingredientId: str
                         <TableHead>EK (netto)</TableHead>
                         <TableHead>Match</TableHead>
                         <TableHead>Grund</TableHead>
+                        <TableHead className="text-right">Aktionen</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -319,6 +395,9 @@ export function IngredientSupplierArticles({ ingredientId }: { ingredientId: str
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground">
                             {r.review_reason ?? '—'}
+                          </TableCell>
+                          <TableCell>
+                            <RowActions row={r} onSetPreferred={handleSetPreferred} onRemove={handleRemove} busy={busy} />
                           </TableCell>
                         </TableRow>
                       ))}
