@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase/client'
+import { resolveSupplierLabel } from '@/lib/supplier-label'
 import type { IngredientSupplierArticleJoined, Supplier } from '@/types'
 
 export type ManualArticleInput = {
@@ -42,14 +43,74 @@ export const supplierArticlesService = {
       .order('name', { ascending: true })
 
     if (error) throw error
-
     return (data ?? []) as Pick<Supplier, 'id' | 'name'>[]
+  },
+
+  /** Bevorzugter EK-Lieferant je Zutat (für die Listenspalte). */
+  async listPreferredSuppliers(): Promise<{ ingredient_id: string; label: string }[]> {
+    const { data, error } = await supabase
+      .from('ingredient_supplier_articles')
+      .select(`
+        ingredient_id,
+        supplier_article:supplier_articles!ingredient_supplier_articles_supplier_article_id_fkey(
+          match_key,
+          supplier:suppliers!supplier_articles_supplier_id_fkey(name)
+        )
+      `)
+      .eq('is_preferred', true)
+
+    if (error) throw error
+
+    return (data ?? []).map((r) => {
+      const a = (r as { supplier_article?: { match_key?: string | null; supplier?: { name?: string | null } | null } | null }).supplier_article
+      return {
+        ingredient_id: (r as { ingredient_id: string }).ingredient_id,
+        label: resolveSupplierLabel(a?.supplier?.name, a?.match_key),
+      }
+    })
+  },
+
+  /** Setzt eine Zuordnung als bevorzugt (und hebt die bisherige auf); bestätigt sie zugleich. */
+  async setPreferred(ingredientId: string, mappingId: string): Promise<void> {
+    const { error: unsetErr } = await supabase
+      .from('ingredient_supplier_articles')
+      .update({ is_preferred: false })
+      .eq('ingredient_id', ingredientId)
+      .eq('is_preferred', true)
+    if (unsetErr) throw unsetErr
+
+    const { error } = await supabase
+      .from('ingredient_supplier_articles')
+      .update({ is_preferred: true, needs_review: false })
+      .eq('id', mappingId)
+    if (error) throw error
+  },
+
+  /** Entfernt eine Zuordnung (Zutat ↔ Artikel). Der Artikel selbst bleibt erhalten. */
+  async removeMapping(mappingId: string): Promise<void> {
+    const { error } = await supabase
+      .from('ingredient_supplier_articles')
+      .delete()
+      .eq('id', mappingId)
+    if (error) throw error
+  },
+
+  /** Legt einen neuen Lieferanten an (benötigt anon-Insert-Policy auf suppliers). */
+  async createSupplier(name: string): Promise<Pick<Supplier, 'id' | 'name'>> {
+    const code = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'lieferant'
+    const { data, error } = await supabase
+      .from('suppliers')
+      .insert({ supplier_code: code, name: name.trim(), active: true })
+      .select('id, name')
+      .single()
+    if (error) throw error
+    return data as Pick<Supplier, 'id' | 'name'>
   },
 
   /**
    * Legt manuell einen Lieferantenartikel an und verknüpft ihn mit der Zutat.
-   * EK-only; match_key bleibt null (kein Rechnungsbezug). Bei preferred wird die
-   * bisherige Vorzugszuordnung der Zutat zurückgesetzt (Partial-Unique-Index).
+   * EK-only; match_key bleibt null. Bei preferred wird die bisherige
+   * Vorzugszuordnung der Zutat zurückgesetzt (Partial-Unique-Index).
    */
   async addManualArticle(ingredientId: string, input: ManualArticleInput): Promise<void> {
     const { data: article, error: artErr } = await supabase

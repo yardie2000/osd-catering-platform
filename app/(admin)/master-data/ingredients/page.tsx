@@ -6,6 +6,7 @@ import { useIngredients, useIngredientCategories, useCreateIngredient, useUpdate
 import { PageHeader } from '@/components/layout/page-header'
 import { IngredientForm, type IngredientFormValues } from '@/components/ingredients/ingredient-form'
 import { IngredientSupplierArticles } from '@/components/ingredients/ingredient-supplier-articles'
+import { usePreferredSuppliers } from '@/hooks/use-supplier-articles'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -25,6 +26,7 @@ export default function IngredientsPage() {
 
   const { data: ingredients = [], isLoading } = useIngredients({ search, category: categoryFilter === '__all__' ? undefined : categoryFilter })
   const { data: categories = [] } = useIngredientCategories()
+  const { data: preferredSuppliers = {} } = usePreferredSuppliers()
   const createIngredient = useCreateIngredient()
   const updateIngredient = useUpdateIngredient()
   const deleteIngredient = useDeleteIngredient()
@@ -139,11 +141,11 @@ export default function IngredientsPage() {
                         {ing.default_unit ? `${ing.default_unit.name} (${ing.default_unit.unit_code})` : '—'}
                       </TableCell>
                       <TableCell>
-                        {ing.supplier_name ? (
+                        {(preferredSuppliers[ing.id] ?? ing.supplier_name) ? (
                           <div className="flex flex-col gap-1">
-                            <span className="font-medium">{ing.supplier_name}</span>
+                            <span className="font-medium">{preferredSuppliers[ing.id] ?? ing.supplier_name}</span>
                             <Badge variant="outline" className="text-[10px] px-1.5">
-                              Lieferant zugeordnet
+                              {preferredSuppliers[ing.id] ? 'bevorzugter EK' : 'Lieferant zugeordnet'}
                             </Badge>
                           </div>
                         ) : (

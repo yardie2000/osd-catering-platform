@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supplierArticlesService, type ManualArticleInput } from '@/services/supplier-articles.service'
+import { INGREDIENTS_KEY } from '@/hooks/use-ingredients'
 
 export const SUPPLIER_ARTICLES_KEY = ['ingredient-supplier-articles'] as const
+export const PREFERRED_SUPPLIERS_KEY = ['preferred-suppliers'] as const
 
 export function useIngredientSupplierArticles(ingredientId: string) {
   return useQuery({
@@ -20,13 +22,59 @@ export function useSuppliers() {
   })
 }
 
-export function useAddSupplierArticle(ingredientId: string) {
+/** Map ingredient_id -> bevorzugter Lieferanten-Label (für die Zutatenliste). */
+export function usePreferredSuppliers() {
+  return useQuery({
+    queryKey: PREFERRED_SUPPLIERS_KEY,
+    queryFn: async () => {
+      const rows = await supplierArticlesService.listPreferredSuppliers()
+      const map: Record<string, string> = {}
+      for (const r of rows) map[r.ingredient_id] = r.label
+      return map
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
+function useEkInvalidate(ingredientId: string) {
   const queryClient = useQueryClient()
+  return () => {
+    queryClient.invalidateQueries({ queryKey: [...SUPPLIER_ARTICLES_KEY, ingredientId] })
+    queryClient.invalidateQueries({ queryKey: PREFERRED_SUPPLIERS_KEY })
+    queryClient.invalidateQueries({ queryKey: INGREDIENTS_KEY })
+  }
+}
+
+export function useAddSupplierArticle(ingredientId: string) {
+  const invalidate = useEkInvalidate(ingredientId)
   return useMutation({
     mutationFn: (input: ManualArticleInput) =>
       supplierArticlesService.addManualArticle(ingredientId, input),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...SUPPLIER_ARTICLES_KEY, ingredientId] })
-    },
+    onSuccess: invalidate,
+  })
+}
+
+export function useSetPreferred(ingredientId: string) {
+  const invalidate = useEkInvalidate(ingredientId)
+  return useMutation({
+    mutationFn: (mappingId: string) =>
+      supplierArticlesService.setPreferred(ingredientId, mappingId),
+    onSuccess: invalidate,
+  })
+}
+
+export function useRemoveMapping(ingredientId: string) {
+  const invalidate = useEkInvalidate(ingredientId)
+  return useMutation({
+    mutationFn: (mappingId: string) => supplierArticlesService.removeMapping(mappingId),
+    onSuccess: invalidate,
+  })
+}
+
+export function useCreateSupplier() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (name: string) => supplierArticlesService.createSupplier(name),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['suppliers'] }),
   })
 }
