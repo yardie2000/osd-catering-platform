@@ -1,270 +1,126 @@
-# OSD Catering Platform — V4.5
+# OSD Catering Platform V5.1
 
-Eine **operative Catering Calculation & Production Engine** — kein allgemeines Eventmanagement-Tool.
-Sie verwaltet Stammdaten (Einheiten, Zutaten, Rezepte, Menüs) und leitet daraus **Produktions- und
-Einkaufsmengen** ab: aus den verkauften Menüs + Gästezahlen entstehen automatisch Produktionslisten
-und Einkaufslisten.
+Operative Catering-Kalkulations- und Kuechenplanungsplattform fuer OSD Event GmbH.
 
-> **Maßgebliche Referenz:** [`OSD_CATERING_PLATFORM_V4_SPEC.md`](OSD_CATERING_PLATFORM_V4_SPEC.md)
-> (Release V4.2). Bei Konflikt zwischen Doku, Repo-Migrationen und Live-DB gilt **die Live-DB**.
+Die App verwaltet Stammdaten, Rezepte, Menues, Produktionslaeufe, Importdaten und Einkaufsbedarfe. Aus verkauften Menues und Gaestezahlen entstehen nachvollziehbare Produktions- und Einkaufslisten auf derselben Berechnungsbasis.
 
----
+Autoritative Spezifikation: [OSD_CATERING_PLATFORM_V5_1_SPEC.md](OSD_CATERING_PLATFORM_V5_1_SPEC.md)
 
-## Status: V4.5
+## Status
 
-Konsolidierter, kompilierbarer Stand (`tsc` 0 Fehler · Lint grün · Build grün · Tests grün).
-Die beiden V4.5-Kriterien — **vollständige deutsche Lokalisierung** und ein **funktionierender
-Import-/Matching-Pfad** — sind erfüllt; das Matching liegt als belastbarer Prototyp vor (das
-vollwertige Matching-Center ist V5, siehe unten).
+Release: V5.1
+Package: `osd-catering-platform@5.1.0`
+Deployment: GitHub Actions baut das Docker-Image und veroeffentlicht es in GHCR; Synology aktualisiert den Container per Watchtower.
 
-**In V4.5 abgeschlossen**
+## Kernmodule
 
-- **Rezeptbasis vereinheitlicht:** `base_portions` als kanonisches Feld (App-seitig Pflicht, DB
-  vorerst nullable) neben `yield_quantity` / `yield_unit_id` / `yield_pct` / `production_loss_pct`.
-  Typen, Service, Hooks, Seiten und Migrationen durchgängig konsolidiert; verwaiste/duplizierte
-  Typdateien und kaputte camelCase-Migrationen bereinigt.
-- **Rezept-UI entdoppelt:** gemeinsame `RecipeForm` für Neu/Bearbeiten, echte read-only
-  Rezept-Detailseite, korrigierte Routenpfade.
-- **Master Data komplett:** Zutaten und Einheiten als Liste, Dialog-CRUD **und** echte
-  Detail-/Neu-/Bearbeiten-Unterseiten über wiederverwendbare Formulare.
-- **Rechen-Engine:** `base_portions` ist jetzt die **primäre Portionsbasis** (`resolveBase`), vor
-  `yield_quantity` → Notiz → Default.
-- **Datenqualität:** Rezeptbasis-Vollständigkeit live sichtbar + nicht-destruktiver Backfill
-  („Basisportionen aus Ertrag übernehmen").
-- **App-weite deutsche Lokalisierung** der zentralen Module (Rezepte, Zutaten, Einheiten,
-  Datenqualität, Menüs, Produktions-/Einkaufsausgabe, Produktionsläufe, Import, Validierung,
-  Einstellungen, Navigation).
-- **ESLint** nicht-interaktiv (Flat Config `eslint.config.mjs`, `npm run lint` → `eslint .`).
-- **MouseClick-Bedarf-Import (Prototyp):** Produktbedarf-CSV einlesen → Produkt-zu-Menü-Matching
-  (Auto-Vorschlag + manuelle Bestätigung) → Produktionslauf erzeugen, der die vorhandene
-  Bedarfsberechnung speist. Parser + Matcher mit Tests abgesichert.
+- Dashboard fuer Betriebsueberblick und schnelle Navigation.
+- Stammdaten: Einheiten, Zutaten, Rezepte, Menues.
+- Menuepositionen mit Rezeptverknuepfung.
+- Importcenter fuer Excel- und Bedarf-Importe.
+- Validierung und Datenqualitaet.
+- Produktionslaeufe mit Menue- und Pax-Eingabe.
+- Produktionsausgabe aus Rezeptaggregation.
+- Einkaufsausgabe aus denselben Bedarfsdaten.
+- Lieferantenartikel als Grundlage fuer Kosten- und Einkaufslogik.
+- Settings mit Supabase- und Schema-Status.
 
-**Noch offen Richtung V5** ([`OSD_CATERING_PLATFORM_V5_SPEC.md`](OSD_CATERING_PLATFORM_V5_SPEC.md))
+## Rechenlogik
 
-- **Vollwertiges Matching-Center:** persistente Zuordnungen (`entity_aliases`), Confidence-Queue,
-  Import-Review/Staging.
-- **Lieferanten- und Bestelllogik**, Export je Bestellung.
-- **Rollen-/Rechtekonzept (RLS)** für den Produktivbetrieb.
+Production und Purchasing sind keine getrennten Eingaben. Beide Ausgaben entstehen aus einem Produktionslauf.
 
----
-
-## Neu in V4.2 (Rechen-Engine + Dashboard)
-
-V4.1 hat Mengen zwar konsistent aggregiert, aber **zwei Formelstufen gefehlt** und die Portionsbasis
-geraten. V4.2 implementiert die vollständige Küchenformel und baut die Output-Screens zum
-**Kitchen-Operations-Dashboard** um. Details: [`audit/CHANGELOG_V4.2.md`](audit/CHANGELOG_V4.2.md).
-
-- **Produktionsverlust + Yield** sind jetzt im Engine: `recipes.production_loss_pct`, `recipes.yield_pct`
-  (nullable, je Rezept überschreibbar; `NULL` → globaler Default **10 % / 80 %**).
-- **Einheiten-Klassifizierung:** Verlust/Yield gelten **nur für Masse/Volumen**. Stück-Einheiten
-  skalieren mit Pax (ohne Auf­schlag); „zum Abschmecken"-Einheiten (Geschmack, Bedarf, EL …) werden
-  als **„n. Bedarf"** angezeigt statt als unsinnige Menge.
-- **Eine Datenbasis:** Production & Purchasing entstehen aus **einem** Skalierungslauf — sie können
-  nicht auseinanderlaufen.
-- **UI:** dichtes, dunkles Dashboard mit Sticky-Summen und voller Nachvollziehbarkeit
-  Netto → Produktion → Einkauf.
-
----
-
-## Rechen-Engine (verbindliche Formel)
-
-```
-Netto-Bedarf      = Portionsmenge × Pax            (Portionsmenge = Rezeptmenge ÷ Portionsbasis)
-Produktionsmenge  = Netto-Bedarf × (1 + Verlust %)        ← Production Factor
-Einkaufsmenge     = Produktionsmenge ÷ Yield %
+```text
+Verkaufte Menues
+  -> Produktionslauf mit Menue + Pax
+    -> Rezeptaggregation
+      -> Produktionsausgabe
+      -> Einkaufsausgabe
 ```
 
-**Beispiel** (reproduziert in `npm test`):
+Verbindliche Formel:
 
-```
-100 Portionen × 150 g   = 15 kg     Netto-Bedarf
-+ 10 % Produktionsverlust = 16,5 kg   Produktionsmenge
-÷ 80 % Yield            = 20,625 kg  Einkaufsmenge
-```
-
-Verlust/Yield wirken nur auf Masse/Volumen. Stück-Mengen skalieren mit Pax; qualitative Einheiten
-bleiben „n. Bedarf". Rezepte ohne hinterlegte Portionsbasis nutzen den Default **50** und werden im
-UI als **„Annahme"** markiert (nicht still falsch).
-
----
-
-## Kernworkflow
-
-Production und Purchasing sind **keine getrennten Eingaben**, sondern Auswertungen **einer** Planung:
-
-```
-Verkaufte Menüs
-  → Kitchen Production Batch   (Menüs + Pax — EINMALIGE Eingabe)
-      → Rezeptaggregation       (gemeinsamer Aggregation-Service)
-          → Production Output    (je Rezept skaliert: Netto → Produktion, Prep-Listen)
-          → Purchasing Output    (Zutaten aggregiert: Netto → Produktion → Einkauf, nach Kategorie)
+```text
+Netto-Bedarf      = Portionsmenge x Pax
+Produktionsmenge  = Netto-Bedarf x (1 + Produktionsverlust)
+Einkaufsmenge     = Produktionsmenge / Yield
 ```
 
-Events/Gästemanagement laufen **extern in Mouseclick** — hier wird je Batch nur *Menü + Pax* erfasst.
-
----
-
-## Features
-
-- **Stammdaten:** Einheiten, Zutaten, Rezepte (mit Zutaten + Verlust/Yield), Menüs (CRUD).
-- **Menü ↔ Rezept-Verknüpfung:** Menüpositionen optional mit Rezepten verknüpfen (Such-/Code-Picker).
-- **Kitchen Production Batch:** zentrale Planungseinheit (Menü + Pax) — die **einzige** Dateneingabe.
-- **Production Output:** Produktionsmenge je Rezept (Netto × Verlustfaktor), Portionsbasis-Quelle
-  (Yield / aus Notiz / Annahme), Sticky-Summen, „Kitchen Production Sheet" (Druck) + CSV.
-- **Purchasing Output:** Zutaten aggregiert **nach Kategorie**, voll nachvollziehbar
-  Netto → Produktion → Einkauf, Einheiten-Merge (kg→g, l→ml), „n. Bedarf" für qualitative Einheiten,
-  „Purchasing Sheet" (Druck) + CSV.
-- **Excel-Import-Engine:** Stammdaten-Import mit Validierung, Dry-Run und Logs.
-- **Operations-Hilfen:** Import Center, Validierung, Data Quality, Settings (Schema-/Verbindungsstatus).
-
----
+Verlust und Yield wirken auf Masse und Volumen. Stueck-Einheiten skalieren direkt mit Pax. Qualitative Einheiten werden als Bedarfshinweis behandelt.
 
 ## Tech Stack
 
-Next.js 15 (App Router) · React 19 · TypeScript (strict) · Tailwind + shadcn/ui · TanStack Query ·
-React Hook Form + Zod · Supabase / PostgreSQL (PostgREST) · xlsx · Lucide · Sonner.
+- Next.js 15 App Router
+- React
+- TypeScript strict
+- TailwindCSS und shadcn/ui
+- TanStack Query
+- Supabase/PostgreSQL
+- Docker, GHCR, Synology Container Manager, Watchtower
 
----
-
-## Schnellstart (Windows)
-
-Doppelklick auf eine der Batch-Dateien im Projekt-Root:
-
-| Datei | Zweck |
-|---|---|
-| **`start.bat`** | Produktions-Launcher: baut beim ersten Start, dann `next start` auf http://localhost:3000. |
-| **`dev.bat`** | Entwicklungs-Launcher: `next dev` (Hot Reload) auf http://localhost:3000. |
-
-Manuell (Cross-Platform):
+## Entwicklung
 
 ```bash
 npm install
-npm run dev      # Entwicklung (Hot Reload), http://localhost:3000
-# oder Produktion:
+npm run dev
+```
+
+Produktion lokal:
+
+```bash
 npm run build
 npm run start
 ```
 
-> Nicht `npm run build` ausführen, während der Dev-Server läuft — das überschreibt `.next` und
-> bricht den Dev-Server (`missing required error components`). Erst Dev stoppen, dann bauen.
+Qualitaetssicherung:
 
----
+```bash
+npm run type-check
+npm run lint
+npm test
+npm run build
+```
 
-## Voraussetzungen
+## Deployment
 
-- **Node.js 18+** und npm
-- Ein **Supabase-Projekt** (PostgreSQL + PostgREST)
-- `.env.local` im Projekt-Root:
+Merge nach `main` startet `.github/workflows/docker-publish.yml`.
+
+Der Workflow:
+
+1. baut das Produktions-Docker-Image,
+2. pusht `ghcr.io/yardie2000/osd-catering-platform:latest`,
+3. pusht zusaetzlich ein SHA-getaggtes Image,
+4. Synology Watchtower zieht automatisch das neue `latest`-Image und ersetzt den App-Container.
+
+Synology-Compose-Referenz: [docker-compose.synology.yml](docker-compose.synology.yml)
+
+## Environment
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=https://<project>.supabase.co   # Browser + Server
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...                      # Browser (RLS)
-SUPABASE_SERVICE_ROLE_KEY=eyJ...                          # nur Server (Import, Health-Check)
+NEXT_PUBLIC_SUPABASE_URL=https://<project>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
 ```
 
-> Die App hat **kein Login** — der Browser nutzt den **anon-Key**. RLS erlaubt anon CRUD auf die
-> genutzten Tabellen. Für eine **öffentliche** Bereitstellung echtes Auth einführen.
+Die produktiven Credentials werden nicht im Repository gespeichert.
 
----
+## Projektstruktur
 
-## Datenbank & Migrationen
-
-SQL-Migrationen liegen in [`supabase/migrations/`](supabase/migrations/) (additiv, chronologisch).
-
-> ⚠️ Anon-/Service-Role-Keys sind PostgREST-JWTs und können **kein DDL**. Migrationen werden über den
-> **Supabase SQL-Editor** ausgeführt. **Live-DB ≠ Repo-Migrationen** — Schema-Wahrheit ist die Live-DB
-> bzw. Abschnitt 4.2 der V4-Spec.
-
-V4.1/V4.2-relevante Migrationen:
-`…0606000003` (kitchen_batches + kitchen_batch_items),
-**`…20260613000001` (recipes.production_loss_pct + yield_pct — V4.2 Verlust/Yield)**.
-
----
-
-## Tests
-
-```bash
-npm test         # node --test — Rechen-Engine (reproduziert das Spec-Beispiel + Aggregationsregeln)
+```text
+app/                 Next.js App Router, Pages, API Routes
+components/          Layout, Forms, Tabellen, UI-Komponenten
+hooks/               TanStack Query Hooks
+lib/                 Berechnung, Import, Supabase, Utilities
+providers/           App Provider
+services/            Supabase-Datenzugriffe
+supabase/migrations/ Additive Datenbankmigrationen
+tests/               Rechen- und Importtests
+types/               Domain- und Datenbanktypen
 ```
 
-10 Fälle u. a.: das Beispiel 15 kg → 16,5 kg → 20,625 kg, kg/g- & l/ml-Konvertierung,
-Aggregation (5 kg + 2 kg = 7 kg), Verlust-/Yield-isoliert, Stück/qualitativ ohne Aufschlag,
-„Annahme"-Markierung, gemeinsame Datenbasis von Production & Purchasing.
+## Datenwahrheit
 
----
+Die Live-Supabase-Datenbank ist fuer produktive Daten und tatsaechliche Relationen fuehrend. Migrationen im Repository dokumentieren und erweitern das Schema additiv. Keine Migration darf produktive Daten loeschen, ohne vorher explizit geplant und gesichert zu sein.
 
-## Bedienung
+## Scope
 
-1. **Stammdaten** pflegen oder per **Import Center** (Excel) laden.
-2. **Menüs** anlegen und Positionen mit **Rezepten verknüpfen** (Master Data → Menus → Detail).
-3. **Operations → Production Batches**: Batch anlegen, dann **Menüs + Pax einmal** eintragen.
-4. **Operations → Production Output** bzw. **Purchasing Output**: Batch wählen → Auswertung,
-   Druck-Sheet + CSV.
-
----
-
-## Projektstruktur (Auszug)
-
-```
-app/(admin)/
-  master-data/   units · ingredients · recipes · menus
-  operations/    batches[/[id]] · production · purchasing · imports · validation · data-quality
-  settings/
-components/  layout · master-data · operations/output-ui · ui (shadcn)
-hooks/       use-menus · use-recipes · use-ingredients · use-units · use-imports · use-batches
-lib/
-  purchasing/aggregate.ts        V4.2 Engine: Skalierung + Verlust/Yield + Einheiten-Klassen + Merge
-  production/plan.ts              Produktionsmenge je Rezept (Netto × Verlustfaktor)
-  operations/computeBatchOutputs.ts   gemeinsamer Aggregation-Service (eine Datenbasis → beide Outputs)
-  importers/                     Excel-Import-Engine
-services/    *.service.ts (batch, menus, recipes, ingredients, units, purchasing, imports)
-types/       database.ts · index.ts
-supabase/migrations/
-tests/       calc.test.ts (npm test)
-audit/       Audit-, Error- & Changelog-Reports + reproduzierbare Verifikations-Skripte
-```
-
----
-
-## NPM-Scripts
-
-```bash
-npm run dev          # Dev-Server (Turbopack, Hot Reload)
-npm run build        # Produktions-Build
-npm run start        # Produktionsserver
-npm run type-check   # tsc --noEmit
-npm test             # Rechen-Engine-Tests (node --test)
-```
-
-> Tipp: nach Code-Änderungen **immer auch `npm run build`** als finale Verifikation (fängt
-> Next-only-Fehler ab). Dev-Server vorher stoppen.
-
----
-
-## Bekannte Daten-Abhängigkeiten (ehrlich)
-
-Die Logik ist vorhanden, greift aber erst mit den passenden Stammdaten:
-
-- **Portionsbasis:** 17 Batch-Rezepte (alle `REC-00xx`) haben keine hinterlegte Basis → Default 50,
-  im UI als **„Annahme"** markiert. Erfassungsbogen: `output/OSD_Portionsbasis_Eingabe.xlsx`.
-- **Leere Rezepte:** 28 Rezepte (5 im aktuellen Batch) haben **keine Zutaten** → tragen nichts zu
-  Produktion/Einkauf bei. Erfassungsbogen: `output/OSD_Fehlende_Zutaten.xlsx`.
-- **Kosten & Lieferant** brauchen `supplier_products` — aktuell leer → Purchasing zeigt „—".
-- **Kategorie-Gruppierung** nutzt `ingredients.category` — aktuell leer → eine Gruppe „Ohne Kategorie".
-
----
-
-## Audit & Dokumentation
-
-- [`audit/AUDIT_REPORT.md`](audit/AUDIT_REPORT.md) — Voll-Audit der Rechenpfade (Phasen 1–6)
-- [`audit/ERROR_ANALYSIS.md`](audit/ERROR_ANALYSIS.md) — Fehler-Trace & Formel-Verifikation
-- [`audit/CHANGELOG_V4.2.md`](audit/CHANGELOG_V4.2.md) — V4.2-Changelog
-- [`audit/MIGRATION_NOTES_V4.2.md`](audit/MIGRATION_NOTES_V4.2.md) — Migrations-/Daten-Hinweise
-- [`OSD_CATERING_PLATFORM_V4_SPEC.md`](OSD_CATERING_PLATFORM_V4_SPEC.md) — **autoritative** Spezifikation
-- [`INSTALL.md`](INSTALL.md) — Installations-/Deployment-Hinweise
-
-Die `audit/*.mjs|cjs`-Skripte sind reproduzierbar (read-only gegen die Live-DB bzw. die Export-CSVs).
-
----
-
-*Internes Operations-Tool. Kein Login, anon-Key im Browser — nur für interne/lokale Nutzung gedacht.*
+Die Plattform ist ein internes Operations-Tool fuer Catering-Kalkulation, Kuechenplanung und Einkaufsableitung. Sie ist kein CRM, kein Angebotsmanagement und kein vollstaendiges Eventmanagement-System.

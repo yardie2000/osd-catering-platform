@@ -72,7 +72,7 @@ export class ExcelImportEngine {
     const logger = new ImportLogger(job.id)
 
     try {
-      logger.info(`Import V4.2 started: ${options.filename}${options.dryRun ? ' (DRY RUN)' : ''}`)
+      logger.info(`Import V5.1 started: ${options.filename}${options.dryRun ? ' (DRY RUN)' : ''}`)
 
       // Parse all sheets
       const unitRows             = sheetToRows(findSheet(workbook, SHEET_MAP.units))
