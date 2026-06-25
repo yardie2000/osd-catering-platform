@@ -20,6 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { ErrorState } from '@/components/ui/state'
 import { ArrowLeft, Pencil, Trash2, Plus, Link2, Replace, Unlink, ChevronUp, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
 import { getErrorMessage } from '@/lib/errors'
@@ -41,7 +42,7 @@ type EditValues = z.infer<typeof editSchema>
 
 export default function MenuDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const { data: menu, isLoading } = useMenu(id)
+  const { data: menu, isLoading, isError, error } = useMenu(id)
   const updateMenu    = useUpdateMenu()
   const addItem       = useAddMenuItem(id)
   const removeItem    = useRemoveMenuItem(id)
@@ -155,6 +156,7 @@ export default function MenuDetailPage() {
   }
 
   if (isLoading) return <div className="flex items-center justify-center h-full text-muted-foreground">Laden…</div>
+  if (isError) return <div className="p-4 sm:p-6 lg:p-8"><ErrorState error={error} title="Menü konnte nicht geladen werden" /></div>
   if (!menu)     return <div className="flex items-center justify-center h-full text-muted-foreground">Menü nicht gefunden.</div>
 
   const itemCount = menu.menu_items.length
@@ -177,7 +179,7 @@ export default function MenuDetailPage() {
         }
       />
 
-      <div className="p-8 space-y-6">
+      <div className="space-y-6 p-4 sm:p-6 lg:p-8">
         <div className="flex gap-3 flex-wrap">
           {menu.active ? <Badge variant="success">Aktiv</Badge> : <Badge variant="secondary">Inaktiv</Badge>}
           {menu.category && <Badge variant="outline">{menu.category}</Badge>}
@@ -192,14 +194,14 @@ export default function MenuDetailPage() {
         )}
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
             <CardTitle className="text-sm">Positionen in diesem Menü</CardTitle>
             <Button size="sm" variant="outline" onClick={() => setAddOpen(true)}>
               <Plus className="h-4 w-4" /> Position hinzufügen
             </Button>
           </CardHeader>
-          <CardContent className="p-0 overflow-x-auto">
-            <Table>
+          <CardContent className="p-0">
+            <Table className="min-w-[820px]">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-10">#</TableHead>
@@ -297,7 +299,7 @@ export default function MenuDetailPage() {
                       <TableCell className="align-top">
                         <div className="flex items-center justify-end gap-0.5">
                           <Button
-                            variant="ghost" size="icon" className="h-8 w-8"
+                            variant="ghost" size="icon"
                             onClick={() => handleMove(i, -1)}
                             disabled={i === 0 || reorderItems.isPending}
                             aria-label="Nach oben"
@@ -305,7 +307,7 @@ export default function MenuDetailPage() {
                             <ChevronUp className="h-4 w-4" />
                           </Button>
                           <Button
-                            variant="ghost" size="icon" className="h-8 w-8"
+                            variant="ghost" size="icon"
                             onClick={() => handleMove(i, 1)}
                             disabled={i === itemCount - 1 || reorderItems.isPending}
                             aria-label="Nach unten"
@@ -313,7 +315,7 @@ export default function MenuDetailPage() {
                             <ChevronDown className="h-4 w-4" />
                           </Button>
                           <Button
-                            variant="ghost" size="icon" className="h-8 w-8"
+                            variant="ghost" size="icon"
                             onClick={() => handleRemoveItem(mi.id, mi.name)}
                             aria-label="Position entfernen"
                           >
@@ -335,7 +337,7 @@ export default function MenuDetailPage() {
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Menü bearbeiten</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit(handleSave)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="text-sm font-medium">Menücode *</label>
                 <Input {...register('menu_code')} className="mt-1" />
@@ -363,7 +365,7 @@ export default function MenuDetailPage() {
               <label className="text-sm font-medium">Beschreibung</label>
               <Textarea {...register('menu_description')} className="mt-1" rows={3} placeholder="Optionale Beschreibung" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="text-sm font-medium">Preis pro Person (€)</label>
                 <Input {...register('price_per_person')} type="number" step="0.01" className="mt-1" />
@@ -435,7 +437,7 @@ export default function MenuDetailPage() {
                 className="mt-1"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="text-sm font-medium">Ernährung</label>
                 <Input

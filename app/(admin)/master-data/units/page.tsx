@@ -15,6 +15,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
+import { ErrorState } from '@/components/ui/state'
 import { Plus, Pencil, Trash2, Search, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 import { getErrorMessage } from '@/lib/errors'
@@ -22,7 +23,7 @@ import type { Unit } from '@/types'
 
 export default function UnitsPage() {
   const [search, setSearch] = useState('')
-  const { data: units = [], isLoading } = useUnits({ search })
+  const { data: units = [], isLoading, isError, error } = useUnits({ search })
   const createUnit = useCreateUnit()
   const updateUnit = useUpdateUnit()
   const deleteUnit = useDeleteUnit()
@@ -88,7 +89,8 @@ export default function UnitsPage() {
         }
       />
 
-      <div className="p-8 space-y-4">
+      <div className="space-y-4 p-4 sm:p-6 lg:p-8">
+        {isError && <ErrorState error={error} title="Einheiten konnten nicht geladen werden" />}
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -152,13 +154,14 @@ export default function UnitsPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-1">
-                          <Button asChild variant="ghost" size="icon" title="Ansehen">
+                          <Button asChild variant="ghost" size="icon" title="Ansehen" aria-label={`${unit.name} ansehen`}>
                             <Link href={`/master-data/units/${unit.id}`}><Eye className="h-3.5 w-3.5" /></Link>
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
                             title="Bearbeiten"
+                            aria-label={`${unit.name} bearbeiten`}
                             onClick={() => setDialog({ edit: unit })}
                           >
                             <Pencil className="h-3.5 w-3.5" />
@@ -167,6 +170,7 @@ export default function UnitsPage() {
                             variant="ghost"
                             size="icon"
                             title="Löschen"
+                            aria-label={`${unit.name} löschen`}
                             onClick={() => handleDelete(unit.id, unit.name)}
                           >
                             <Trash2 className="h-3.5 w-3.5 text-destructive" />

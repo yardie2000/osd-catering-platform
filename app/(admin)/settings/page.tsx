@@ -40,7 +40,7 @@ export default async function SettingsPage() {
   return (
     <div className="flex flex-col h-full">
       <PageHeader title="Einstellungen" description="Plattformkonfiguration, Schema-Status und V4.2-Roadmap" />
-      <div className="p-8 space-y-6 max-w-2xl">
+      <div className="max-w-3xl space-y-6 p-4 sm:p-6 lg:p-8">
 
         {/* Connection status */}
         <Card>
@@ -90,7 +90,7 @@ export default async function SettingsPage() {
               vereinheitlicht: Jede Menüzeile kann direkt in der Oberfläche mit einem Rezept verknüpft
               werden — die Grundlage für die kommenden Produktions- und Einkaufsmodule.
             </p>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-xs">
+            <div className="grid grid-cols-1 gap-x-4 gap-y-1 font-mono text-xs sm:grid-cols-2">
               <span className="text-foreground">menus.menu_name</span>        <span>✓ aktiv</span>
               <span className="text-foreground">menus.menu_description</span> <span>✓ aktiv</span>
               <span className="text-foreground">menu_items</span>             <span>✓ aktiv (ersetzt menu_recipes)</span>

@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { ErrorState } from '@/components/ui/state'
 import { Plus, Pencil, Trash2, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 import { getErrorMessage } from '@/lib/errors'
@@ -57,7 +58,7 @@ function BatchForm({ defaultValues, onSubmit, onCancel, loading }: {
         <Input {...register('name')} placeholder="z. B. Weekend Production · KW23" className="mt-1" />
         {errors.name && <p className="text-xs text-destructive mt-1">{errors.name.message}</p>}
       </div>
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div>
           <label className="text-sm font-medium">Start</label>
           <Input type="date" {...register('start_date')} className="mt-1" />
@@ -90,7 +91,7 @@ function BatchForm({ defaultValues, onSubmit, onCancel, loading }: {
 }
 
 export default function BatchesPage() {
-  const { data: batches = [], isLoading } = useBatches()
+  const { data: batches = [], isLoading, isError, error } = useBatches()
   const createBatch = useCreateBatch()
   const updateBatch = useUpdateBatch()
   const deleteBatch = useDeleteBatch()
@@ -132,7 +133,8 @@ export default function BatchesPage() {
         description="Zentrale Produktionsplanung — Menüs + Personenzahl einmalig erfassen; Produktion & Einkauf werden daraus abgeleitet"
         actions={<Button size="sm" onClick={() => setDialog('create')}><Plus className="h-4 w-4" /> Neuer Produktionslauf</Button>}
       />
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
+        {isError && <ErrorState error={error} title="Produktionsläufe konnten nicht geladen werden" className="mb-4" />}
         <Card>
           <CardContent className="p-0 overflow-x-auto">
             <Table>
@@ -175,13 +177,13 @@ export default function BatchesPage() {
                       <TableCell><Badge variant={statusVariant(b.status)}>{statusLabel(b.status)}</Badge></TableCell>
                       <TableCell>
                         <div className="flex items-center justify-end gap-1">
-                          <Button asChild variant="ghost" size="icon" className="h-8 w-8">
+                          <Button asChild variant="ghost" size="icon">
                             <Link href={`/operations/batches/${b.id}`} aria-label="Öffnen"><Eye className="h-4 w-4" /></Link>
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDialog({ edit: b })} aria-label="Bearbeiten">
+                          <Button variant="ghost" size="icon" onClick={() => setDialog({ edit: b })} aria-label={`${b.name} bearbeiten`}>
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(b.id, b.name)} aria-label="Löschen">
+                          <Button variant="ghost" size="icon" onClick={() => handleDelete(b.id, b.name)} aria-label={`${b.name} löschen`}>
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </div>

@@ -231,7 +231,7 @@ export function RecipeForm({
         }
       />
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 p-4 sm:p-6 lg:p-8">
         <Card>
           <CardHeader>
             <CardTitle>Rezeptdaten</CardTitle>
@@ -370,6 +370,7 @@ export function RecipeForm({
             <Button
               type="button"
               variant="outline"
+              className="w-full sm:w-auto"
               onClick={() =>
                 append({
                   ingredient_id: '',
@@ -394,7 +395,7 @@ export function RecipeForm({
               </p>
             ) : (
               fields.map((field, index) => (
-                <div key={field.id} className="grid gap-4 rounded-lg border p-4 md:grid-cols-6">
+                <div key={field.id} className="grid gap-4 rounded-lg border p-4 sm:p-5 md:grid-cols-6">
                   <div className="space-y-2 md:col-span-2">
                     <Label>Zutat</Label>
                     <Select
@@ -471,7 +472,7 @@ export function RecipeForm({
                   </div>
 
                   <div className="flex items-end">
-                    <Button type="button" variant="destructive" onClick={() => remove(index)}>
+                    <Button type="button" variant="destructive" className="w-full md:w-auto" onClick={() => remove(index)}>
                       <Trash2 className="mr-2 h-4 w-4" />
                       Entfernen
                     </Button>
@@ -501,7 +502,7 @@ export function RecipeForm({
           </CardContent>
         </Card>
 
-        <div className="flex justify-end gap-3">
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <Button type="button" variant="outline" asChild>
             <Link href={backHref}>Abbrechen</Link>
           </Button>

@@ -71,7 +71,7 @@ export function IngredientForm({
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="text-sm font-medium">Code *</label>
           <Input {...register('ingredient_code')} placeholder="ZUT-001" className="mt-1" />
@@ -87,7 +87,7 @@ export function IngredientForm({
                   key={category}
                   type="button"
                   onClick={() => setValue('category', category)}
-                  className="rounded-full border border-border px-2 py-1 text-xs text-muted-foreground transition hover:border-primary hover:text-foreground"
+                  className="min-h-10 rounded-full border border-border px-3 py-2 text-xs text-muted-foreground transition hover:border-primary hover:text-foreground"
                 >
                   {category}
                 </button>
@@ -101,7 +101,7 @@ export function IngredientForm({
         <Input {...register('name')} placeholder="Name der Zutat" className="mt-1" />
         {errors.name && <p className="text-xs text-destructive mt-1">{errors.name.message}</p>}
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="text-sm font-medium">Standardeinheit</label>
           <Controller
@@ -137,7 +137,7 @@ export function IngredientForm({
               type="button"
               key={a}
               onClick={() => toggleAllergen(a)}
-              className={`px-2 py-1 rounded-full text-xs border transition-colors ${
+              className={`min-h-10 rounded-full border px-3 py-2 text-xs transition-colors ${
                 selectedAllergens?.includes(a)
                   ? 'bg-primary text-primary-foreground border-primary'
                   : 'border-border text-muted-foreground hover:border-primary/50'

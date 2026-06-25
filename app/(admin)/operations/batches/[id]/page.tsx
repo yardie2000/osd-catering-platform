@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { ErrorState } from '@/components/ui/state'
 import { ArrowLeft, Plus, Trash2, ChefHat, ShoppingCart } from 'lucide-react'
 import { toast } from 'sonner'
 import { getErrorMessage } from '@/lib/errors'
@@ -26,7 +27,7 @@ const statusLabel = (s: string) => STATUS_LABELS[s] ?? s
 
 export default function BatchDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const { data: batch, isLoading } = useBatch(id)
+  const { data: batch, isLoading, isError, error } = useBatch(id)
   const { data: menus = [] } = useMenus()
   const addItem = useAddBatchItem(id)
   const updatePax = useUpdateBatchItemPax(id)
@@ -58,6 +59,7 @@ export default function BatchDetailPage() {
   }
 
   if (isLoading) return <div className="flex items-center justify-center h-full text-muted-foreground">Laden…</div>
+  if (isError) return <div className="p-4 sm:p-6 lg:p-8"><ErrorState error={error} title="Produktionslauf konnte nicht geladen werden" /></div>
   if (!batch) return <div className="flex items-center justify-center h-full text-muted-foreground">Produktionslauf nicht gefunden.</div>
 
   const items = batch.kitchen_batch_items ?? []
@@ -81,7 +83,7 @@ export default function BatchDetailPage() {
         }
       />
 
-      <div className="p-8 space-y-6">
+      <div className="space-y-6 p-4 sm:p-6 lg:p-8">
         <div className="flex flex-wrap items-center gap-3">
           <Badge variant="outline">{statusLabel(batch.status)}</Badge>
           {batch.production_date && <Badge variant="secondary">Produktion: {new Date(batch.production_date).toLocaleDateString('de-DE')}</Badge>}
@@ -140,7 +142,7 @@ export default function BatchDetailPage() {
                           onBlur={(e) => handlePax(it.id, e.target.value, it.pax_count)} className="h-8 w-28" />
                       </TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleRemove(it.id, it.menu?.menu_name ?? 'Menü')} aria-label="Entfernen">
+                        <Button variant="ghost" size="icon" onClick={() => handleRemove(it.id, it.menu?.menu_name ?? 'Menü')} aria-label={`${it.menu?.menu_name ?? 'Menü'} entfernen`}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </TableCell>

@@ -14,13 +14,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Printer, Download, AlertTriangle, Info, ChefHat } from 'lucide-react'
 import { toast } from 'sonner'
 import { nf, QtyCell, Stat, StickyBar, baseSourceLabel } from '@/components/operations/output-ui'
+import { ErrorState } from '@/components/ui/state'
 
 function ProductionOutputInner() {
   const params = useSearchParams()
   const { data: batches = [] } = useBatches()
   const [batchId, setBatchId] = useState(params.get('batch') ?? '')
 
-  const { data: outputs, isLoading } = useBatchOutputs(batchId)
+  const { data: outputs, isLoading, isError, error } = useBatchOutputs(batchId)
   const plan = outputs?.production
   const batch = outputs?.batch
   const hasResult = !!plan && plan.batches.length > 0
@@ -123,13 +124,16 @@ function ProductionOutputInner() {
             </CardContent>
           </Card>
         )}
+        {isError && (
+          <ErrorState error={error} title="Produktionsausgabe konnte nicht berechnet werden" />
+        )}
 
-        {!hasResult ? (
+        {!hasResult && !isError ? (
           <Card><CardContent className="py-12 text-center text-muted-foreground">
             <ChefHat className="h-6 w-6 mx-auto opacity-50 mb-2" />
             {!batchId ? 'Produktionslauf wählen, um den Produktionsplan zu sehen.' : isLoading ? 'Berechne…' : 'Dieser Produktionslauf hat keine produzierbaren Rezepte (Menüs/Personenzahl/Rezept-Verknüpfung prüfen).'}
           </CardContent></Card>
-        ) : (
+        ) : hasResult ? (
           <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
             {plan.batches.map((b) => {
               const src = baseSourceLabel(b.source)
@@ -146,7 +150,7 @@ function ProductionOutputInner() {
                     </div>
                   </div>
                   {b.has_ingredients ? (
-                    <Table>
+                    <Table className="min-w-[420px]">
                       <TableHeader>
                         <TableRow className="hover:bg-transparent">
                           <TableHead className="h-8">Zutat</TableHead>
@@ -169,7 +173,7 @@ function ProductionOutputInner() {
               )
             })}
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   )
