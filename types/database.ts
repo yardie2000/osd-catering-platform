@@ -118,6 +118,29 @@ export type Database = {
           { foreignKeyName: 'kitchen_batch_items_menu_id_fkey';  columns: ['menu_id'];  referencedRelation: 'menus';           referencedColumns: ['id'] }
         ]
       }
+      suppliers: {
+        Row:           Supplier
+        Insert:        SupplierInsert
+        Update:        SupplierUpdate
+        Relationships: []
+      }
+      supplier_articles: {
+        Row:           SupplierArticle
+        Insert:        SupplierArticleInsert
+        Update:        SupplierArticleUpdate
+        Relationships: [
+          { foreignKeyName: 'supplier_articles_supplier_id_fkey'; columns: ['supplier_id']; referencedRelation: 'suppliers'; referencedColumns: ['id'] }
+        ]
+      }
+      ingredient_supplier_articles: {
+        Row:           IngredientSupplierArticle
+        Insert:        IngredientSupplierArticleInsert
+        Update:        IngredientSupplierArticleUpdate
+        Relationships: [
+          { foreignKeyName: 'ingredient_supplier_articles_ingredient_id_fkey';       columns: ['ingredient_id'];       referencedRelation: 'ingredients';       referencedColumns: ['id'] },
+          { foreignKeyName: 'ingredient_supplier_articles_supplier_article_id_fkey'; columns: ['supplier_article_id']; referencedRelation: 'supplier_articles'; referencedColumns: ['id'] }
+        ]
+      }
     }
     Views:     { [_ in never]: never }
     Functions: { [_ in never]: never }
@@ -358,16 +381,17 @@ export type Event = {
 }
 
 export type Supplier = {
-  id:           string
-  supplier_code:string
-  name:         string
-  contact_name: string | null
-  email:        string | null
-  phone:        string | null
-  notes:        string | null
-  active:       boolean
-  created_at:   string
-  updated_at:   string
+  id:              string
+  supplier_code:   string
+  name:            string
+  contact_name:    string | null
+  email:           string | null
+  phone:           string | null
+  notes:           string | null
+  active:          boolean
+  customer_number: string | null
+  created_at:      string
+  updated_at:      string
 }
 
 // ── purchasing (V4: persistence active) ───────────────────
@@ -470,4 +494,76 @@ export type KitchenBatchItemWithMenu = KitchenBatchItem & {
 
 export type KitchenBatchWithItems = KitchenBatch & {
   kitchen_batch_items: KitchenBatchItemWithMenu[]
+}
+
+// ── supplier_articles / EK-Mapping (V5) ─────────────────────
+// (Supplier-Row-Typ ist oben definiert; hier nur Insert/Update + Artikel.)
+
+export type SupplierInsert = Omit<Supplier, 'id' | 'created_at' | 'updated_at'>
+export type SupplierUpdate = Partial<SupplierInsert>
+
+export type SupplierArticle = {
+  id:                      string
+  supplier_id:             string
+  supplier_article_number: string | null
+  ean_gtin:                string | null
+  raw_article_name:        string | null
+  clean_article_name_de:   string | null
+  ingredient_name_de:      string | null
+  category_de:             string | null
+  product_type_de:         string | null
+  is_food:                 boolean
+  is_frozen:               boolean
+  is_fresh:                boolean
+  is_bio:                  boolean
+  origin_country:          string | null
+  tax_rate_percent:        number | null
+  packaging_unit:          string | null
+  packaging_quantity:      number | null
+  content_quantity:        number | null
+  content_unit:            string | null
+  base_unit:               string | null
+  base_quantity_total:     number | null
+  ek_single_price_net:     number | null
+  ek_price_unit:           string | null
+  ek_total_price_net:      number | null
+  ek_price_per_base_unit:  number | null
+  currency:                string
+  last_invoice_number:     string | null
+  last_invoice_date:       string | null
+  last_source_file:        string | null
+  match_key:               string | null
+  duplicate_group_key:     string | null
+  is_active:               boolean
+  created_at:              string
+  updated_at:              string
+}
+export type SupplierArticleInsert = Omit<SupplierArticle, 'id' | 'created_at' | 'updated_at'>
+export type SupplierArticleUpdate = Partial<SupplierArticleInsert>
+
+export type IngredientSupplierArticle = {
+  id:                                   string
+  ingredient_id:                        string
+  supplier_article_id:                  string
+  match_type:                           string
+  match_score:                          number
+  is_preferred:                         boolean
+  priority:                             number
+  conversion_factor_to_ingredient_unit: number | null
+  ek_price_override:                    number | null
+  notes:                                string | null
+  needs_review:                         boolean
+  review_reason:                        string | null
+  created_at:                           string
+  updated_at:                           string
+}
+export type IngredientSupplierArticleInsert = Omit<IngredientSupplierArticle, 'id' | 'created_at' | 'updated_at'>
+export type IngredientSupplierArticleUpdate = Partial<IngredientSupplierArticleInsert>
+
+// Join-Formen für die Zutaten-Detailseite (EK-Abschnitt)
+export type SupplierArticleWithSupplier = SupplierArticle & {
+  supplier: Pick<Supplier, 'id' | 'name'> | null
+}
+export type IngredientSupplierArticleJoined = IngredientSupplierArticle & {
+  supplier_article: SupplierArticleWithSupplier | null
 }
