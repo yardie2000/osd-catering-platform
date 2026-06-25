@@ -1,5 +1,15 @@
 import { supabase } from '@/lib/supabase/client'
-import type { IngredientSupplierArticleJoined } from '@/types'
+import type { IngredientSupplierArticleJoined, Supplier } from '@/types'
+
+export type ManualArticleInput = {
+  supplierId: string
+  name: string
+  ekPerBaseUnit: number
+  baseUnit: string
+  articleNumber?: string | null
+  taxRatePercent?: number | null
+  preferred: boolean
+}
 
 export const supplierArticlesService = {
   /** Alle Lieferantenartikel-Zuordnungen (EK) einer Zutat, inkl. Artikel + Lieferant. */
@@ -21,5 +31,68 @@ export const supplierArticlesService = {
     if (error) throw error
 
     return (data ?? []) as unknown as IngredientSupplierArticleJoined[]
+  },
+
+  /** Aktive Lieferanten für das Auswahlfeld. */
+  async listSuppliers(): Promise<Pick<Supplier, 'id' | 'name'>[]> {
+    const { data, error } = await supabase
+      .from('suppliers')
+      .select('id, name')
+      .eq('active', true)
+      .order('name', { ascending: true })
+
+    if (error) throw error
+
+    return (data ?? []) as Pick<Supplier, 'id' | 'name'>[]
+  },
+
+  /**
+   * Legt manuell einen Lieferantenartikel an und verknüpft ihn mit der Zutat.
+   * EK-only; match_key bleibt null (kein Rechnungsbezug). Bei preferred wird die
+   * bisherige Vorzugszuordnung der Zutat zurückgesetzt (Partial-Unique-Index).
+   */
+  async addManualArticle(ingredientId: string, input: ManualArticleInput): Promise<void> {
+    const { data: article, error: artErr } = await supabase
+      .from('supplier_articles')
+      .insert({
+        supplier_id: input.supplierId,
+        clean_article_name_de: input.name,
+        raw_article_name: input.name,
+        base_unit: input.baseUnit,
+        ek_price_per_base_unit: input.ekPerBaseUnit,
+        currency: 'EUR',
+        is_food: true,
+        is_active: true,
+        supplier_article_number: input.articleNumber || null,
+        tax_rate_percent: input.taxRatePercent ?? null,
+        match_key: null,
+      })
+      .select('id')
+      .single()
+
+    if (artErr) throw artErr
+
+    if (input.preferred) {
+      const { error: unsetErr } = await supabase
+        .from('ingredient_supplier_articles')
+        .update({ is_preferred: false })
+        .eq('ingredient_id', ingredientId)
+        .eq('is_preferred', true)
+      if (unsetErr) throw unsetErr
+    }
+
+    const { error: linkErr } = await supabase
+      .from('ingredient_supplier_articles')
+      .insert({
+        ingredient_id: ingredientId,
+        supplier_article_id: (article as { id: string }).id,
+        match_type: 'manuell',
+        match_score: 100,
+        is_preferred: input.preferred,
+        needs_review: false,
+        priority: 100,
+      })
+
+    if (linkErr) throw linkErr
   },
 }

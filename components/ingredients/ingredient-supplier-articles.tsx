@@ -1,11 +1,27 @@
 'use client'
 
 import { useState } from 'react'
-import { Star, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react'
+import { Star, ChevronDown, ChevronRight, AlertTriangle, Plus } from 'lucide-react'
+import { toast } from 'sonner'
 
-import { useIngredientSupplierArticles } from '@/hooks/use-supplier-articles'
+import {
+  useIngredientSupplierArticles,
+  useSuppliers,
+  useAddSupplierArticle,
+} from '@/hooks/use-supplier-articles'
+import { getErrorMessage } from '@/lib/errors'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -15,6 +31,95 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import type { IngredientSupplierArticleJoined, SupplierArticleWithSupplier } from '@/types'
+
+const BASE_UNITS = ['kg', 'l', 'g', 'ml', 'Stück'] as const
+
+function AddArticleForm({ ingredientId, onClose }: { ingredientId: string; onClose: () => void }) {
+  const { data: suppliers } = useSuppliers()
+  const addArticle = useAddSupplierArticle(ingredientId)
+  const [supplierId, setSupplierId] = useState('')
+  const [name, setName] = useState('')
+  const [ek, setEk] = useState('')
+  const [baseUnit, setBaseUnit] = useState<string>('kg')
+  const [articleNumber, setArticleNumber] = useState('')
+  const [taxRate, setTaxRate] = useState('')
+  const [preferred, setPreferred] = useState(false)
+
+  async function submit() {
+    const ekNum = Number(ek.replace(',', '.'))
+    if (!supplierId) return toast.error('Bitte einen Lieferanten wählen.')
+    if (!name.trim()) return toast.error('Bitte einen Artikelnamen eingeben.')
+    if (!Number.isFinite(ekNum) || ekNum < 0) return toast.error('Bitte einen gültigen EK-Preis eingeben.')
+    try {
+      await addArticle.mutateAsync({
+        supplierId,
+        name: name.trim(),
+        ekPerBaseUnit: ekNum,
+        baseUnit,
+        articleNumber: articleNumber.trim() || null,
+        taxRatePercent: taxRate.trim() ? Number(taxRate.replace(',', '.')) : null,
+        preferred,
+      })
+      toast.success('Lieferantenartikel hinzugefügt')
+      onClose()
+    } catch (e) {
+      toast.error(getErrorMessage(e))
+    }
+  }
+
+  return (
+    <div className="space-y-3 rounded-md border border-border p-3">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-1">
+          <Label className="text-xs">Lieferant *</Label>
+          <Select value={supplierId} onValueChange={setSupplierId}>
+            <SelectTrigger><SelectValue placeholder="Lieferant wählen" /></SelectTrigger>
+            <SelectContent>
+              {(suppliers ?? []).map((s) => (
+                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Artikelname *</Label>
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="z. B. 5 kg Auberginen NL" />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">EK netto / Basiseinheit *</Label>
+          <Input value={ek} onChange={(e) => setEk(e.target.value)} placeholder="z. B. 1,87" inputMode="decimal" />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Basiseinheit</Label>
+          <Select value={baseUnit} onValueChange={setBaseUnit}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {BASE_UNITS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Artikelnummer (optional)</Label>
+          <Input value={articleNumber} onChange={(e) => setArticleNumber(e.target.value)} />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">MwSt % (optional)</Label>
+          <Input value={taxRate} onChange={(e) => setTaxRate(e.target.value)} placeholder="z. B. 7" inputMode="decimal" />
+        </div>
+      </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={preferred} onChange={(e) => setPreferred(e.target.checked)} />
+        Als bevorzugten EK-Artikel setzen
+      </label>
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" size="sm" onClick={onClose} disabled={addArticle.isPending}>Abbrechen</Button>
+        <Button size="sm" onClick={submit} disabled={addArticle.isPending}>
+          {addArticle.isPending ? 'Speichern…' : 'Hinzufügen'}
+        </Button>
+      </div>
+    </div>
+  )
+}
 
 // Lieferant: bevorzugt der echte (eingebettete) Name; Fallback aus dem
 // match_key-Präfix (metro:/chefs:), falls die anon-Rolle die suppliers-Zeile
@@ -100,6 +205,7 @@ function ArticleRow({ row, preferred }: { row: IngredientSupplierArticleJoined; 
 export function IngredientSupplierArticles({ ingredientId }: { ingredientId: string }) {
   const { data, isLoading } = useIngredientSupplierArticles(ingredientId)
   const [showReview, setShowReview] = useState(false)
+  const [showAdd, setShowAdd] = useState(false)
 
   const rows = data ?? []
   const secure = rows.filter((r) => !r.needs_review)
@@ -110,17 +216,27 @@ export function IngredientSupplierArticles({ ingredientId }: { ingredientId: str
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
         <CardTitle>Lieferantenartikel &amp; EK</CardTitle>
-        <span className="text-xs text-muted-foreground">
-          {rows.length} Artikel · {secure.length} sicher · {review.length} zur Prüfung
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground">
+            {rows.length} Artikel · {secure.length} sicher · {review.length} zur Prüfung
+          </span>
+          {!showAdd && (
+            <Button variant="outline" size="sm" onClick={() => setShowAdd(true)}>
+              <Plus className="mr-1 h-3.5 w-3.5" /> Lieferantenartikel
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {showAdd && <AddArticleForm ingredientId={ingredientId} onClose={() => setShowAdd(false)} />}
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Laden…</p>
         ) : rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Noch keine Lieferantenartikel zugeordnet.
-          </p>
+          !showAdd && (
+            <p className="text-sm text-muted-foreground">
+              Noch keine Lieferantenartikel zugeordnet.
+            </p>
+          )
         ) : (
           <>
             {preferred?.supplier_article && (

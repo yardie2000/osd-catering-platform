@@ -9,6 +9,7 @@ import { useIngredient, useUpdateIngredient } from '@/hooks/use-ingredients'
 import { getErrorMessage } from '@/lib/errors'
 import { PageHeader } from '@/components/layout/page-header'
 import { IngredientForm, type IngredientFormValues } from '@/components/ingredients/ingredient-form'
+import { IngredientSupplierArticles } from '@/components/ingredients/ingredient-supplier-articles'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 
@@ -71,6 +72,10 @@ export default function EditIngredientPage() {
             />
           </CardContent>
         </Card>
+
+        <div className="mt-6 max-w-2xl">
+          <IngredientSupplierArticles ingredientId={ingredient.id} />
+        </div>
       </div>
     </div>
   )
