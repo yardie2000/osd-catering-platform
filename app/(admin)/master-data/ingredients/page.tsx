@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useIngredients, useIngredientCategories, useCreateIngredient, useUpdateIngredient, useDeleteIngredient } from '@/hooks/use-ingredients'
 import { PageHeader } from '@/components/layout/page-header'
 import { IngredientForm, type IngredientFormValues } from '@/components/ingredients/ingredient-form'
+import { IngredientSupplierArticles } from '@/components/ingredients/ingredient-supplier-articles'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -189,7 +190,7 @@ export default function IngredientsPage() {
       </Dialog>
       {dialog && typeof dialog === 'object' && 'edit' in dialog && (
         <Dialog open onOpenChange={(o) => !o && setDialog(null)}>
-          <DialogContent className="max-w-xl">
+          <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Zutat bearbeiten</DialogTitle></DialogHeader>
             <IngredientForm
               defaultValues={{
@@ -205,6 +206,9 @@ export default function IngredientsPage() {
               onCancel={() => setDialog(null)}
               loading={updateIngredient.isPending}
             />
+            <div className="mt-2">
+              <IngredientSupplierArticles ingredientId={dialog.edit.id} />
+            </div>
           </DialogContent>
         </Dialog>
       )}
