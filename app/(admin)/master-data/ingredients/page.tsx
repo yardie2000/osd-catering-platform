@@ -14,6 +14,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { ErrorState } from '@/components/ui/state'
 import { Plus, Pencil, Trash2, Search, Filter, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 import { getErrorMessage } from '@/lib/errors'
@@ -24,7 +25,7 @@ export default function IngredientsPage() {
   const [categoryFilter, setCategoryFilter] = useState('__all__')
   const [dialog, setDialog] = useState<'create' | { edit: IngredientWithUnit } | null>(null)
 
-  const { data: ingredients = [], isLoading } = useIngredients({ search, category: categoryFilter === '__all__' ? undefined : categoryFilter })
+  const { data: ingredients = [], isLoading, isError, error } = useIngredients({ search, category: categoryFilter === '__all__' ? undefined : categoryFilter })
   const { data: categories = [] } = useIngredientCategories()
   const { data: preferredSuppliers = {} } = usePreferredSuppliers()
   const createIngredient = useCreateIngredient()
@@ -81,8 +82,9 @@ export default function IngredientsPage() {
           </div>
         }
       />
-      <div className="p-8 space-y-4">
-        <div className="flex gap-3 flex-wrap">
+      <div className="space-y-4 p-4 sm:p-6 lg:p-8">
+        {isError && <ErrorState error={error} title="Zutaten konnten nicht geladen werden" />}
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <div className="relative flex-1 min-w-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -93,7 +95,7 @@ export default function IngredientsPage() {
             />
           </div>
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-48">
+            <SelectTrigger className="w-full sm:w-48">
               <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
               <SelectValue placeholder="Alle Kategorien" />
             </SelectTrigger>
@@ -168,11 +170,11 @@ export default function IngredientsPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-1">
-                          <Button asChild variant="ghost" size="icon" title="Ansehen">
+                          <Button asChild variant="ghost" size="icon" title="Ansehen" aria-label={`${ing.name} ansehen`}>
                             <Link href={`/master-data/ingredients/${ing.id}`}><Eye className="h-3.5 w-3.5" /></Link>
                           </Button>
-                          <Button variant="ghost" size="icon" title="Bearbeiten" onClick={() => setDialog({ edit: ing })}><Pencil className="h-3.5 w-3.5" /></Button>
-                          <Button variant="ghost" size="icon" title="Löschen" onClick={() => handleDelete(ing.id, ing.name)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
+                          <Button variant="ghost" size="icon" title="Bearbeiten" aria-label={`${ing.name} bearbeiten`} onClick={() => setDialog({ edit: ing })}><Pencil className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" title="Löschen" aria-label={`${ing.name} löschen`} onClick={() => handleDelete(ing.id, ing.name)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                         </div>
                       </TableCell>
                     </TableRow>

@@ -46,7 +46,7 @@ export function UnitForm({
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="text-sm font-medium">Einheitencode *</label>
           <Input {...register('unit_code')} placeholder="z. B. kg" className="mt-1" />
@@ -62,7 +62,7 @@ export function UnitForm({
         <Input {...register('name')} placeholder="z. B. Kilogramm" className="mt-1" />
         {errors.name && <p className="text-xs text-destructive mt-1">{errors.name.message}</p>}
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="text-sm font-medium">Basiseinheit</label>
           <Input {...register('base_unit')} placeholder="z. B. g" className="mt-1" />

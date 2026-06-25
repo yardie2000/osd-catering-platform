@@ -61,20 +61,23 @@ interface NavItemProps {
   href: string
   icon: React.ComponentType<{ className?: string }>
   active: boolean
+  onNavigate?: () => void
 }
 
-function NavItem({ label, href, icon: Icon, active }: NavItemProps) {
+function NavItem({ label, href, icon: Icon, active, onNavigate }: NavItemProps) {
   return (
     <Link
       href={href}
+      onClick={onNavigate}
       className={cn(
-        'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+        'flex min-h-11 items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
         active
-          ? 'bg-primary/10 text-primary'
-          : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+          ? 'bg-primary/15 text-primary ring-1 ring-primary/30'
+          : 'text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:bg-accent focus-visible:text-foreground'
       )}
+      aria-current={active ? 'page' : undefined}
     >
-      <Icon className="h-4 w-4 shrink-0" />
+      <Icon className="h-5 w-5 shrink-0 sm:h-4 sm:w-4" />
       <span className="truncate">{label}</span>
       {active && <ChevronRight className="ml-auto h-3 w-3" />}
     </Link>
@@ -93,7 +96,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
     <>
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-50 w-72 max-w-full overflow-y-auto border-r bg-card shadow-xl transition-transform duration-300 md:static md:translate-x-0 md:shadow-none',
+          'fixed inset-y-0 left-0 z-50 w-72 max-w-[88vw] overflow-y-auto border-r bg-card shadow-xl transition-transform duration-300 md:fixed md:translate-x-0 md:shadow-none',
           open ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
         )}
       >
@@ -109,7 +112,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           </div>
           <button
             type="button"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition hover:border-primary hover:text-foreground md:hidden"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition hover:border-primary hover:text-foreground md:hidden"
             onClick={onClose}
             aria-label="Navigation schließen"
           >
@@ -128,6 +131,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                   href={leaf.href}
                   icon={leaf.icon}
                   active={pathname === leaf.href}
+                  onNavigate={onClose}
                 />
               )
             }
@@ -145,6 +149,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                       href={item.href}
                       icon={item.icon}
                       active={pathname === item.href || pathname.startsWith(item.href + '/')}
+                      onNavigate={onClose}
                     />
                   ))}
                 </div>

@@ -47,7 +47,7 @@ export default function NewUnitPage() {
         }
       />
 
-      <div className="px-8 pb-8">
+      <div className="px-4 pb-6 sm:px-6 lg:px-8 lg:pb-8">
         <Card className="max-w-2xl">
           <CardContent className="p-6">
             <UnitForm

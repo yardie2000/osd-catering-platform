@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { ErrorState } from '@/components/ui/state'
 import type { Recipe } from '@/types'
 
 function baseStatus(recipe: Recipe): { complete: boolean; missing: string[] } {
@@ -23,8 +24,8 @@ function baseStatus(recipe: Recipe): { complete: boolean; missing: string[] } {
 }
 
 export default function DataQualityPage() {
-  const { data: ingredients = [], isLoading: li } = useIngredients()
-  const { data: recipes = [], isLoading: lr } = useRecipes()
+  const { data: ingredients = [], isLoading: li, isError: ingredientsError, error: ingredientsErrorValue } = useIngredients()
+  const { data: recipes = [], isLoading: lr, isError: recipesError, error: recipesErrorValue } = useRecipes()
   const backfill = useBackfillBasePortions()
 
   const noAllergenIngredients = ingredients.filter((i) => i.allergens.length === 0)
@@ -68,7 +69,13 @@ export default function DataQualityPage() {
         title="Datenqualität"
         description="Vollständigkeit und Qualität der Stammdaten"
       />
-      <div className="p-8 space-y-6">
+      <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+        {(ingredientsError || recipesError) && (
+          <div className="grid gap-3">
+            {ingredientsError && <ErrorState error={ingredientsErrorValue} title="Zutaten konnten nicht geladen werden" />}
+            {recipesError && <ErrorState error={recipesErrorValue} title="Rezepte konnten nicht geladen werden" />}
+          </div>
+        )}
         <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
           <Card>
             <CardHeader><CardTitle className="text-sm">Rezepte mit unvollständiger Basis</CardTitle></CardHeader>

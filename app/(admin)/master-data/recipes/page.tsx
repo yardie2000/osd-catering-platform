@@ -21,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { ErrorState } from '@/components/ui/state'
 import type { Recipe } from '@/types'
 
 function formatNumber(value: number | null | undefined, decimals = 0) {
@@ -37,7 +38,7 @@ function RecipesInner() {
   const initialSearch = searchParams.get('search') ?? ''
   const [search, setSearch] = useState(initialSearch)
 
-  const { data: recipes = [], isLoading } = useRecipes({ search })
+  const { data: recipes = [], isLoading, isError, error } = useRecipes({ search })
   const deleteRecipe = useDeleteRecipe()
 
   const totalRecipes = recipes.length
@@ -63,7 +64,7 @@ function RecipesInner() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col">
       <PageHeader
         title="Rezepte"
         description="Rezeptstammdaten, Basisportionen, Ertrag und Skalierbarkeit verwalten."
@@ -77,33 +78,35 @@ function RecipesInner() {
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardContent className="p-6">
-            <p className="text-sm text-muted-foreground">Rezepte gesamt</p>
-            <p className="mt-2 text-2xl font-semibold">{formatNumber(totalRecipes)}</p>
-          </CardContent>
-        </Card>
+      <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+        {isError && <ErrorState error={error} title="Rezepte konnten nicht geladen werden" />}
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card>
+            <CardContent className="p-6">
+              <p className="text-sm text-muted-foreground">Rezepte gesamt</p>
+              <p className="mt-2 text-2xl font-semibold">{formatNumber(totalRecipes)}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <p className="text-sm text-muted-foreground">Skalierbar</p>
+              <p className="mt-2 text-2xl font-semibold">{formatNumber(scalableCount)}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <p className="text-sm text-muted-foreground">Nicht skalierbar</p>
+              <p className="mt-2 text-2xl font-semibold">
+                {formatNumber(totalRecipes - scalableCount)}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
 
         <Card>
-          <CardContent className="p-6">
-            <p className="text-sm text-muted-foreground">Skalierbar</p>
-            <p className="mt-2 text-2xl font-semibold">{formatNumber(scalableCount)}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <p className="text-sm text-muted-foreground">Nicht skalierbar</p>
-            <p className="mt-2 text-2xl font-semibold">
-              {formatNumber(totalRecipes - scalableCount)}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-6">
           <div className="relative mb-4 max-w-md">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -216,8 +219,9 @@ function RecipesInner() {
               </TableBody>
             </Table>
           </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }

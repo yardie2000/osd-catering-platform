@@ -7,6 +7,7 @@ import { useMenus } from '@/hooks/use-menus'
 import { PageHeader } from '@/components/layout/page-header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { ErrorState } from '@/components/ui/state'
 import { CheckCircle, AlertTriangle } from 'lucide-react'
 
 interface Check {
@@ -17,10 +18,10 @@ interface Check {
 }
 
 export default function ValidationPage() {
-  const { data: units = [], isLoading: lu } = useUnits()
-  const { data: ingredients = [], isLoading: li } = useIngredients()
-  const { data: recipes = [], isLoading: lr } = useRecipes()
-  const { data: menus = [], isLoading: lm } = useMenus()
+  const { data: units = [], isLoading: lu, isError: unitsError, error: unitsErrorValue } = useUnits()
+  const { data: ingredients = [], isLoading: li, isError: ingredientsError, error: ingredientsErrorValue } = useIngredients()
+  const { data: recipes = [], isLoading: lr, isError: recipesError, error: recipesErrorValue } = useRecipes()
+  const { data: menus = [], isLoading: lm, isError: menusError, error: menusErrorValue } = useMenus()
 
   const loading = lu || li || lr || lm
 
@@ -79,8 +80,16 @@ export default function ValidationPage() {
         title="Datenvalidierung"
         description="Automatische Prüfungen auf Vollständigkeit und Konsistenz der Stammdaten"
       />
-      <div className="p-8 space-y-6">
-        <div className="grid gap-4 grid-cols-3">
+      <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+        {(unitsError || ingredientsError || recipesError || menusError) && (
+          <div className="grid gap-3">
+            {unitsError && <ErrorState error={unitsErrorValue} title="Einheiten konnten nicht geladen werden" />}
+            {ingredientsError && <ErrorState error={ingredientsErrorValue} title="Zutaten konnten nicht geladen werden" />}
+            {recipesError && <ErrorState error={recipesErrorValue} title="Rezepte konnten nicht geladen werden" />}
+            {menusError && <ErrorState error={menusErrorValue} title="Menüs konnten nicht geladen werden" />}
+          </div>
+        )}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Card>
             <CardContent className="pt-6">
               <p className="text-3xl font-bold text-emerald-400">{passCount}</p>

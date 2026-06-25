@@ -12,15 +12,20 @@ import { IngredientForm, type IngredientFormValues } from '@/components/ingredie
 import { IngredientSupplierArticles } from '@/components/ingredients/ingredient-supplier-articles'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { ErrorState } from '@/components/ui/state'
 
 export default function EditIngredientPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
-  const { data: ingredient, isLoading } = useIngredient(id)
+  const { data: ingredient, isLoading, isError, error } = useIngredient(id)
   const updateIngredient = useUpdateIngredient()
 
   if (isLoading) {
     return <div className="p-6">Laden…</div>
+  }
+
+  if (isError) {
+    return <div className="p-4 sm:p-6 lg:p-8"><ErrorState error={error} title="Zutat konnte nicht geladen werden" /></div>
   }
 
   if (!ingredient) {
@@ -52,7 +57,7 @@ export default function EditIngredientPage() {
         }
       />
 
-      <div className="px-8 pb-8">
+      <div className="px-4 pb-6 sm:px-6 lg:px-8 lg:pb-8">
         <Card className="max-w-2xl">
           <CardContent className="p-6">
             <IngredientForm

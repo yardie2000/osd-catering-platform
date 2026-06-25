@@ -18,6 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { ErrorState } from '@/components/ui/state'
 
 function formatNumber(value: number | null | undefined, decimals = 0) {
   if (value == null) return '—'
@@ -38,11 +39,15 @@ function DataRow({ label, value }: { label: string; value: ReactNode }) {
 
 export default function RecipeDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const { data: recipe, isLoading } = useRecipe(id)
+  const { data: recipe, isLoading, isError, error } = useRecipe(id)
   const { data: allergens = [] } = useRecipeAllergens(id)
 
   if (isLoading) {
     return <div className="p-6">Laden…</div>
+  }
+
+  if (isError) {
+    return <div className="p-4 sm:p-6 lg:p-8"><ErrorState error={error} title="Rezept konnte nicht geladen werden" /></div>
   }
 
   if (!recipe) {
@@ -54,7 +59,7 @@ export default function RecipeDetailPage() {
     : null
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col">
       <PageHeader
         title={recipe.name}
         description={`Rezeptcode ${recipe.recipe_code}`}
@@ -76,7 +81,7 @@ export default function RecipeDetailPage() {
         }
       />
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 p-4 sm:p-6 lg:grid-cols-3 lg:p-8">
         <Card className="lg:col-span-1">
           <CardHeader>
             <CardTitle>Rezeptbasis</CardTitle>
@@ -165,7 +170,7 @@ export default function RecipeDetailPage() {
         </Card>
       </div>
 
-      <Card>
+      <Card className="mx-4 mb-6 sm:mx-6 lg:mx-8">
         <CardHeader>
           <CardTitle>Zutaten</CardTitle>
         </CardHeader>

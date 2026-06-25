@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { ErrorState } from '@/components/ui/state'
 
 const SKIP = '__skip__'
 
@@ -30,7 +31,7 @@ function todayLabel() {
 export default function BedarfImportPage() {
   const router = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
-  const { data: menus = [], isLoading: menusLoading } = useMenus()
+  const { data: menus = [], isLoading: menusLoading, isError: menusError, error: menusErrorValue } = useMenus()
   const createBatch = useCreateBatch()
 
   const [fileName, setFileName] = useState('')
@@ -137,7 +138,8 @@ export default function BedarfImportPage() {
         description="MouseClick-Produktbedarf (CSV) einlesen, Produkte den Menüs zuordnen und daraus einen Produktionslauf erzeugen."
       />
 
-      <div className="p-8 space-y-6">
+      <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+        {menusError && <ErrorState error={menusErrorValue} title="Menüs konnten nicht für das Matching geladen werden" />}
         {/* Upload */}
         <Card>
           <CardHeader>
@@ -154,7 +156,7 @@ export default function BedarfImportPage() {
               <code className="text-foreground bg-muted px-1 rounded">Klassifizierung</code>.
             </p>
             <div
-              className="border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
+              className="min-h-36 rounded-lg border-2 border-dashed border-border p-6 text-center cursor-pointer transition-colors hover:border-primary/50 sm:p-8"
               onClick={() => fileRef.current?.click()}
             >
               <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
@@ -171,7 +173,7 @@ export default function BedarfImportPage() {
                 }}
               />
             </div>
-            {!menusLoading && menus.length === 0 && (
+            {!menusLoading && !menusError && menus.length === 0 && (
               <p className="flex items-center gap-2 text-xs text-amber-500">
                 <AlertTriangle className="h-4 w-4" /> Es sind noch keine Menüs im Katalog — ohne Menüs kann nichts zugeordnet werden.
               </p>

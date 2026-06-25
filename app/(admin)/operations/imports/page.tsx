@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/layout/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
+import { ErrorState } from '@/components/ui/state'
 import { Upload, FileUp, CheckCircle, XCircle, Clock, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { getErrorMessage } from '@/lib/errors'
@@ -21,7 +22,8 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function JobLogs({ jobId }: { jobId: string }) {
-  const { data: logs = [] } = useImportLogs(jobId)
+  const { data: logs = [], isError, error } = useImportLogs(jobId)
+  if (isError) return <ErrorState error={error} title="Importprotokoll konnte nicht geladen werden" />
   return (
     <div className="space-y-1 max-h-64 overflow-y-auto">
       {logs.length === 0 ? (
@@ -44,7 +46,7 @@ function JobLogs({ jobId }: { jobId: string }) {
 }
 
 export default function ImportsPage() {
-  const { data: jobs = [], refetch } = useImportJobs()
+  const { data: jobs = [], refetch, isError, error } = useImportJobs()
   const [selectedJob, setSelectedJob] = useState<ImportJob | null>(null)
   const [uploading, setUploading] = useState(false)
   const [dryRun, setDryRun] = useState(true)
@@ -91,7 +93,8 @@ export default function ImportsPage() {
         title="Importcenter"
         description="Excel-Arbeitsmappen hochladen, um Einheiten, Zutaten, Rezepte und Menüs zu importieren"
       />
-      <div className="p-8 space-y-6">
+      <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+        {isError && <ErrorState error={error} title="Importverlauf konnte nicht geladen werden" />}
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
@@ -114,7 +117,7 @@ export default function ImportsPage() {
               </label>
             </div>
             <div
-              className="border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
+              className="min-h-36 rounded-lg border-2 border-dashed border-border p-6 text-center cursor-pointer transition-colors hover:border-primary/50 sm:p-8"
               onClick={() => fileRef.current?.click()}
             >
               <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />

@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { ErrorState } from '@/components/ui/state'
 import { Plus, Pencil, Trash2, Search, Eye, Filter } from 'lucide-react'
 import { toast } from 'sonner'
 import { getErrorMessage } from '@/lib/errors'
@@ -43,7 +44,7 @@ function MenuForm({ defaultValues, onSubmit, onCancel, loading }: {
   })
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="text-sm font-medium">Menücode *</label>
           <Input {...register('menu_code')} placeholder="MENU_001" className="mt-1" />
@@ -71,7 +72,7 @@ function MenuForm({ defaultValues, onSubmit, onCancel, loading }: {
         <label className="text-sm font-medium">Beschreibung</label>
         <Textarea {...register('menu_description')} placeholder="Optionale Beschreibung" rows={3} className="mt-1" />
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="text-sm font-medium">Preis pro Person (€)</label>
           <Input {...register('price_per_person')} type="number" step="0.01" placeholder="0.00" className="mt-1" />
@@ -101,7 +102,7 @@ export default function MenusPage() {
   const [categoryFilter, setCategoryFilter] = useState('__all__')
   const [dialog, setDialog] = useState<'create' | { edit: Menu } | null>(null)
 
-  const { data: menus = [], isLoading } = useMenus({ search, category: categoryFilter === '__all__' ? undefined : categoryFilter })
+  const { data: menus = [], isLoading, isError, error } = useMenus({ search, category: categoryFilter === '__all__' ? undefined : categoryFilter })
   const { data: categories = [] } = useMenuCategories()
   const createMenu = useCreateMenu()
   const updateMenu = useUpdateMenu()
@@ -156,14 +157,15 @@ export default function MenusPage() {
           </Button>
         }
       />
-      <div className="p-8 space-y-4">
-        <div className="flex gap-3">
-          <div className="relative flex-1 max-w-sm">
+      <div className="space-y-4 p-4 sm:p-6 lg:p-8">
+        {isError && <ErrorState error={error} title="Menüs konnten nicht geladen werden" />}
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="relative min-w-0 flex-1 sm:max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Menüs suchen…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
           </div>
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-full sm:w-40">
               <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
               <SelectValue placeholder="Alle" />
             </SelectTrigger>
@@ -219,10 +221,10 @@ export default function MenusPage() {
                       <TableCell>
                         <div className="flex gap-1">
                           <Link href={`/master-data/menus/${menu.id}`}>
-                            <Button variant="ghost" size="icon"><Eye className="h-3.5 w-3.5" /></Button>
+                            <Button variant="ghost" size="icon" aria-label={`${menu.menu_name} ansehen`}><Eye className="h-4 w-4" /></Button>
                           </Link>
-                          <Button variant="ghost" size="icon" onClick={() => setDialog({ edit: menu })}><Pencil className="h-3.5 w-3.5" /></Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(menu.id, menu.menu_name)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
+                          <Button variant="ghost" size="icon" aria-label={`${menu.menu_name} bearbeiten`} onClick={() => setDialog({ edit: menu })}><Pencil className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" aria-label={`${menu.menu_name} löschen`} onClick={() => handleDelete(menu.id, menu.menu_name)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                         </div>
                       </TableCell>
                     </TableRow>

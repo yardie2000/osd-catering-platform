@@ -11,6 +11,7 @@ import { PageHeader } from '@/components/layout/page-header'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ErrorState } from '@/components/ui/state'
 
 function DataRow({ label, value }: { label: string; value: ReactNode }) {
   return (
@@ -23,10 +24,14 @@ function DataRow({ label, value }: { label: string; value: ReactNode }) {
 
 export default function IngredientDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const { data: ingredient, isLoading } = useIngredient(id)
+  const { data: ingredient, isLoading, isError, error } = useIngredient(id)
 
   if (isLoading) {
     return <div className="p-6">Laden…</div>
+  }
+
+  if (isError) {
+    return <div className="p-4 sm:p-6 lg:p-8"><ErrorState error={error} title="Zutat konnte nicht geladen werden" /></div>
   }
 
   if (!ingredient) {
@@ -56,7 +61,7 @@ export default function IngredientDetailPage() {
         }
       />
 
-      <div className="grid gap-6 px-8 pb-8 lg:grid-cols-3">
+      <div className="grid gap-6 px-4 pb-6 sm:px-6 lg:grid-cols-3 lg:px-8 lg:pb-8">
         <Card className="lg:col-span-1">
           <CardHeader>
             <CardTitle>Zutatendetails</CardTitle>

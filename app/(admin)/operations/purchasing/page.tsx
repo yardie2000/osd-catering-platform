@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Printer, Download, AlertTriangle, ShoppingCart } from 'lucide-react'
 import { toast } from 'sonner'
 import { nf, cf, QtyCell, Stat, StickyBar } from '@/components/operations/output-ui'
+import { ErrorState } from '@/components/ui/state'
 
 const UNCATEGORIZED = 'Ohne Kategorie'
 
@@ -22,7 +23,7 @@ function PurchasingOutputInner() {
   const { data: batches = [] } = useBatches()
   const [batchId, setBatchId] = useState(params.get('batch') ?? '')
 
-  const { data: outputs, isLoading } = useBatchOutputs(batchId)
+  const { data: outputs, isLoading, isError, error } = useBatchOutputs(batchId)
   const result = outputs?.purchasing
   const batch = outputs?.batch
 
@@ -131,20 +132,23 @@ function PurchasingOutputInner() {
             </CardContent>
           </Card>
         )}
+        {isError && (
+          <ErrorState error={error} title="Einkaufsausgabe konnte nicht berechnet werden" />
+        )}
 
-        {!hasResult ? (
+        {!hasResult && !isError ? (
           <Card><CardContent className="py-12 text-center text-muted-foreground">
             <ShoppingCart className="h-6 w-6 mx-auto opacity-50 mb-2" />
             {!batchId ? 'Produktionslauf wählen, um die Einkaufsliste zu sehen.' : isLoading ? 'Berechne…' : 'Dieser Produktionslauf ergibt keine Zutaten (Menüs/Personenzahl/Rezept-Verknüpfung prüfen).'}
           </CardContent></Card>
-        ) : (
+        ) : hasResult ? (
           groups.map((g) => (
             <Card key={g.category} className="break-inside-avoid overflow-hidden">
               <div className="flex items-center justify-between border-b border-border bg-muted/30 px-4 py-2">
                 <p className="text-sm font-semibold">{g.category}</p>
                 <span className="text-xs text-muted-foreground tabular-nums">{g.items.length} Positionen</span>
               </div>
-              <Table>
+              <Table className="min-w-[680px]">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
                     <TableHead className="h-8">Zutat</TableHead>
@@ -173,7 +177,7 @@ function PurchasingOutputInner() {
               </Table>
             </Card>
           ))
-        )}
+        ) : null}
       </div>
     </div>
   )
