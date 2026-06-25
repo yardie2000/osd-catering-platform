@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation'
 import { ArrowLeft, Pencil } from 'lucide-react'
 
 import { useIngredient } from '@/hooks/use-ingredients'
+import { IngredientSupplierArticles } from '@/components/ingredients/ingredient-supplier-articles'
 import { PageHeader } from '@/components/layout/page-header'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -101,6 +102,10 @@ export default function IngredientDetailPage() {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      <div className="px-8 pb-8">
+        <IngredientSupplierArticles ingredientId={ingredient.id} />
       </div>
     </div>
   )
