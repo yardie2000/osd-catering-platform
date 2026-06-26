@@ -9,6 +9,7 @@ import {
   BookOpen,
   UtensilsCrossed,
   Layers,
+  Truck,
   Upload,
   ShieldCheck,
   BarChart3,
@@ -35,6 +36,7 @@ const nav: NavEntry[] = [
       { label: 'Positionen',  href: '/master-data/positions',    icon: Layers },
       { label: 'Rezepte',     href: '/master-data/recipes',      icon: BookOpen },
       { label: 'Zutaten',     href: '/master-data/ingredients',  icon: Carrot },
+      { label: 'Lieferanten', href: '/master-data/ingredients/suppliers', icon: Truck },
       { label: 'Einheiten',   href: '/master-data/units',        icon: Ruler },
     ],
   },
@@ -144,16 +146,29 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                   {group.label}
                 </p>
                 <div className="space-y-1">
-                  {group.children.map((item) => (
-                    <NavItem
-                      key={item.href}
-                      label={item.label}
-                      href={item.href}
-                      icon={item.icon}
-                      active={pathname === item.href || pathname.startsWith(item.href + '/')}
-                      onNavigate={onClose}
-                    />
-                  ))}
+                  {group.children.map((item) => {
+                    // Nur den spezifischsten Treffer markieren: ein Eltern-Pfad
+                    // (z. B. Zutaten) leuchtet NICHT, wenn ein längeres Geschwister
+                    // (z. B. Lieferanten unter .../ingredients/suppliers) passt.
+                    const isActive =
+                      pathname === item.href ||
+                      (pathname.startsWith(item.href + '/') &&
+                        !group.children.some(
+                          (o) =>
+                            o.href.length > item.href.length &&
+                            (pathname === o.href || pathname.startsWith(o.href + '/')),
+                        ))
+                    return (
+                      <NavItem
+                        key={item.href}
+                        label={item.label}
+                        href={item.href}
+                        icon={item.icon}
+                        active={isActive}
+                        onNavigate={onClose}
+                      />
+                    )
+                  })}
                 </div>
               </div>
             )
