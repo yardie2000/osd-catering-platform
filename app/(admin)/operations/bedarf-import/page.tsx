@@ -28,7 +28,6 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 const SKIP = '__skip__'
 
@@ -186,8 +185,7 @@ export default function BedarfImportPage() {
   const isLoading = menusLoading || contextLoading
 
   return (
-    <TooltipProvider>
-      <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full">
         <PageHeader
           title="Bedarf importieren"
           description="MouseClick-Produktbedarf (CSV) einlesen, Produkte den Menüs zuordnen und daraus einen Produktionslauf erzeugen."
@@ -315,22 +313,20 @@ export default function BedarfImportPage() {
                                   : undefined
                             }
                           >
-                            {/* Status icon */}
+                            {/* Status icon — match log as native browser tooltip */}
                             <TableCell className="align-top pt-3 pl-4">
-                              <Tooltip>
-                                <TooltipTrigger>
-                                  <ConfidenceIcon result={result} />
-                                </TooltipTrigger>
-                                {result && (
-                                  <TooltipContent side="right" className="max-w-xs font-mono text-xs">
-                                    <pre className="whitespace-pre-wrap">
-                                      {result.log.join('\n')}
-                                      {result.warnings.length > 0 &&
-                                        '\n⚠ ' + result.warnings.join('\n⚠ ')}
-                                    </pre>
-                                  </TooltipContent>
-                                )}
-                              </Tooltip>
+                              <span
+                                title={result
+                                  ? [
+                                      ...result.log,
+                                      ...(result.warnings.length > 0
+                                        ? result.warnings.map((w) => `⚠ ${w}`)
+                                        : []),
+                                    ].join('\n')
+                                  : undefined}
+                              >
+                                <ConfidenceIcon result={result} />
+                              </span>
                             </TableCell>
 
                             {/* Product name + long description */}
@@ -412,6 +408,5 @@ export default function BedarfImportPage() {
           )}
         </div>
       </div>
-    </TooltipProvider>
   )
 }
