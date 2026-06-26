@@ -4,6 +4,7 @@ import { INGREDIENTS_KEY } from '@/hooks/use-ingredients'
 
 export const SUPPLIER_ARTICLES_KEY = ['ingredient-supplier-articles'] as const
 export const PREFERRED_SUPPLIERS_KEY = ['preferred-suppliers'] as const
+export const SUPPLIER_ASSIGNMENT_KEY = ['supplier-assignment'] as const
 
 export function useIngredientSupplierArticles(ingredientId: string) {
   return useQuery({
@@ -33,6 +34,34 @@ export function usePreferredSuppliers() {
       return map
     },
     staleTime: 5 * 60 * 1000,
+  })
+}
+
+/** Alle Zutaten mit Lieferanten-Kandidaten (zentrale Zuordnungs-Übersicht). */
+export function useSupplierAssignment() {
+  return useQuery({
+    queryKey: SUPPLIER_ASSIGNMENT_KEY,
+    queryFn: () => supplierArticlesService.listAllCandidates(),
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
+/**
+ * Setzt (oder löscht bei mappingId=null) den bevorzugten Lieferanten einer
+ * beliebigen Zutat — für die zentrale Zuordnung über mehrere Zutaten hinweg.
+ */
+export function useSetPreferredAny() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ ingredientId, mappingId }: { ingredientId: string; mappingId: string | null }) =>
+      mappingId
+        ? supplierArticlesService.setPreferred(ingredientId, mappingId)
+        : supplierArticlesService.clearPreferred(ingredientId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: SUPPLIER_ASSIGNMENT_KEY })
+      queryClient.invalidateQueries({ queryKey: PREFERRED_SUPPLIERS_KEY })
+      queryClient.invalidateQueries({ queryKey: INGREDIENTS_KEY })
+    },
   })
 }
 

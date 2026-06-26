@@ -15,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ErrorState } from '@/components/ui/state'
-import { Plus, Pencil, Trash2, Search, Filter, Eye } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, Filter, Eye, Truck } from 'lucide-react'
 import { toast } from 'sonner'
 import { getErrorMessage } from '@/lib/errors'
 import type { IngredientWithUnit } from '@/types'
@@ -71,6 +71,9 @@ export default function IngredientsPage() {
         description="Zutatenstammdaten — Allergene, Kategorien, Lieferantenzuordnung"
         actions={
           <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/master-data/ingredients/suppliers"><Truck className="h-4 w-4" /> Lieferanten zuordnen</Link>
+            </Button>
             <Button onClick={() => setDialog('create')} variant="outline" size="sm">
               <Plus className="h-4 w-4" /> Schnell anlegen
             </Button>

@@ -629,3 +629,8 @@ export type SupplierArticleWithSupplier = SupplierArticle & {
 export type IngredientSupplierArticleJoined = IngredientSupplierArticle & {
   supplier_article: SupplierArticleWithSupplier | null
 }
+
+// Join-Form für die zentrale Lieferanten-Zuordnung (Kandidat inkl. Zutat)
+export type IngredientSupplierArticleWithIngredient = IngredientSupplierArticleJoined & {
+  ingredient: Pick<Ingredient, 'id' | 'ingredient_code' | 'name' | 'category'> | null
+}

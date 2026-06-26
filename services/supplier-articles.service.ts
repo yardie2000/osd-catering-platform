@@ -1,6 +1,11 @@
 import { supabase } from '@/lib/supabase/client'
 import { resolveSupplierLabel } from '@/lib/supplier-label'
-import type { IngredientSupplierArticleJoined, Supplier } from '@/types'
+import type {
+  IngredientSupplierArticleJoined,
+  IngredientSupplierArticleWithIngredient,
+  Ingredient,
+  Supplier,
+} from '@/types'
 
 export type ManualArticleInput = {
   supplierId: string
@@ -10,6 +15,13 @@ export type ManualArticleInput = {
   articleNumber?: string | null
   taxRatePercent?: number | null
   preferred: boolean
+}
+
+/** Eine Zutat mit allen Lieferantenartikel-Kandidaten (für die zentrale Zuordnung). */
+export type IngredientCandidates = {
+  ingredient: Pick<Ingredient, 'id' | 'ingredient_code' | 'name' | 'category'>
+  mappings: IngredientSupplierArticleJoined[]
+  preferred: IngredientSupplierArticleJoined | null
 }
 
 export const supplierArticlesService = {
@@ -32,6 +44,55 @@ export const supplierArticlesService = {
     if (error) throw error
 
     return (data ?? []) as unknown as IngredientSupplierArticleJoined[]
+  },
+
+  /**
+   * Alle Zutaten mit ihren Lieferantenartikel-Kandidaten, gruppiert — für die
+   * zentrale Zuordnungs-Übersicht. Ein Query, danach client-seitig gruppiert.
+   */
+  async listAllCandidates(): Promise<IngredientCandidates[]> {
+    const { data, error } = await supabase
+      .from('ingredient_supplier_articles')
+      .select(`
+        *,
+        ingredient:ingredients(id, ingredient_code, name, category),
+        supplier_article:supplier_articles!ingredient_supplier_articles_supplier_article_id_fkey(
+          *,
+          supplier:suppliers!supplier_articles_supplier_id_fkey(id, name)
+        )
+      `)
+      .order('is_preferred', { ascending: false })
+      .order('needs_review', { ascending: true })
+      .order('match_score', { ascending: false })
+
+    if (error) throw error
+
+    const groups = new Map<string, IngredientCandidates>()
+    for (const raw of (data ?? []) as unknown as IngredientSupplierArticleWithIngredient[]) {
+      const ing = raw.ingredient
+      if (!ing) continue
+      let g = groups.get(ing.id)
+      if (!g) {
+        g = { ingredient: ing, mappings: [], preferred: null }
+        groups.set(ing.id, g)
+      }
+      g.mappings.push(raw)
+      if (raw.is_preferred) g.preferred = raw
+    }
+
+    return [...groups.values()].sort((a, b) =>
+      a.ingredient.name.localeCompare(b.ingredient.name, 'de'),
+    )
+  },
+
+  /** Hebt die Vorzugszuordnung einer Zutat auf (kein bevorzugter Lieferant mehr). */
+  async clearPreferred(ingredientId: string): Promise<void> {
+    const { error } = await supabase
+      .from('ingredient_supplier_articles')
+      .update({ is_preferred: false })
+      .eq('ingredient_id', ingredientId)
+      .eq('is_preferred', true)
+    if (error) throw error
   },
 
   /** Aktive Lieferanten für das Auswahlfeld. */
