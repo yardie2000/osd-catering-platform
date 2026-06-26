@@ -41,6 +41,7 @@ type SavedOrder = {
   source_row_number: number
   product_name: string
   long_description: string
+  original_import_text: string
   total_quantity: number
   event_pax: number
   unit: string
@@ -232,6 +233,7 @@ async function persistDraft(
           source_row_number: order.sourceRowNumber,
           product_name: order.produkt,
           long_description: order.langbezeichnung,
+          original_import_text: order.originalImportText,
           total_quantity: order.menge,
           event_pax: order.eventPax,
           unit: order.einheit,
@@ -427,6 +429,14 @@ export async function PATCH(req: NextRequest) {
 
     for (const order of body.orders) {
       const menu = order.matched_menu_id ? menuById.get(order.matched_menu_id) : null
+      const { data: existingItems, error: existingItemsError } = await client
+        .from('imported_event_selected_items')
+        .select('sort_order, original_text')
+        .eq('imported_event_order_id', order.id)
+      if (existingItemsError) throw existingItemsError
+      const originalTextBySortOrder = new Map(
+        (existingItems ?? []).map((item) => [item.sort_order, item.original_text ?? '']),
+      )
       const selected = order.selected_items.map((item, index) => {
         const position = item.matched_menu_item_id ? positionById.get(item.matched_menu_item_id) : null
         return {
@@ -437,7 +447,7 @@ export async function PATCH(req: NextRequest) {
           matched_recipe_id: item.matched_recipe_id ?? position?.recipeIds[0] ?? null,
           confidence: item.confidence ?? (item.matched_menu_item_id ? 1 : 0),
           needs_review: item.needs_review ?? !item.matched_menu_item_id,
-          original_text: item.original_text ?? item.raw_position_text,
+          original_text: item.original_text ?? originalTextBySortOrder.get(index) ?? '',
         }
       })
 

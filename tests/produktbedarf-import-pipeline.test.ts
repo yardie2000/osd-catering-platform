@@ -78,6 +78,15 @@ const CATALOG: ImportCatalogMenu[] = [
       { id: 'p-blech', position_code: 'POS-012', name: 'Blechkuchen', recipeIds: ['r-blech'] },
     ],
   },
+  {
+    id: 'm-breakfast',
+    menu_code: 'MENU_BREAKFAST_2026',
+    menu_name: 'FRÜHSTÜCKSMENÜ PAUSENSNACKS',
+    category: 'Frühstück',
+    positions: [
+      { id: 'p-croissant', position_code: 'POS-020', name: 'Croissant', recipeIds: ['r-croissant'] },
+    ],
+  },
 ]
 
 describe('parseAuftraege', () => {
@@ -105,6 +114,15 @@ describe('menu and variant matching', () => {
   test('matches MouseClick product to sellable menu, not recipes', () => {
     const result = matchMenu('Fingerfood 2025 6 Teile', CATALOG)
     assert.equal(result.menu?.id, 'm-fingerfood')
+    assert.equal(result.needsReview, false)
+  })
+
+  test('recognizes breakfast menu from full raw text despite year and extra text', () => {
+    const result = matchMenu(
+      'Sonderbedarf 2026 / Kundenwunsch: FRÜHSTÜCKSMENÜ - Pausensnacks fuer Workshop, bitte morgens liefern',
+      CATALOG,
+    )
+    assert.equal(result.menu?.id, 'm-breakfast')
     assert.equal(result.needsReview, false)
   })
 
@@ -150,6 +168,8 @@ describe('full import draft', () => {
     assert.equal(draft.events.length, 2)
     assert.equal(draft.totalOrders, 2)
     assert.equal(draft.events.find((event) => event.eventName === 'Event A')?.pax, 14)
+    assert.match(draft.events[0].orders[0].originalImportText, /Produkt: Fingerfood 2025 6 Teile/)
+    assert.match(draft.events[0].orders[0].originalImportText, /Auftraege: Event A/)
   })
 
   test('variant count mismatch becomes needs_review', () => {

@@ -494,6 +494,7 @@ export type ImportedEventOrder = {
   source_row_number:      number
   product_name:           string
   long_description:       string
+  original_import_text:   string
   total_quantity:         number
   event_pax:              number
   unit:                   string
@@ -520,6 +521,7 @@ export type ImportedEventOrderInsert = {
   source_row_number:      number
   product_name:           string
   long_description?:      string
+  original_import_text?:  string
   total_quantity?:        number
   event_pax?:             number
   unit?:                  string

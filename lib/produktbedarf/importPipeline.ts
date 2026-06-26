@@ -59,6 +59,7 @@ export type ImportedOrderDraft = {
   sourceRowNumber: number
   produkt: string
   langbezeichnung: string
+  originalImportText: string
   menge: number
   einheit: string
   klassifizierung: string
@@ -108,6 +109,10 @@ function decodeEntities(value: string): string {
 export function normalizeText(value: string): string {
   return decodeEntities(value)
     .toLowerCase()
+    .replace(/\u00e4/g, 'ae')
+    .replace(/\u00f6/g, 'oe')
+    .replace(/\u00fc/g, 'ue')
+    .replace(/\u00df/g, 'ss')
     .replace(/ß/g, 'ss')
     .replace(/æ/g, 'ae')
     .replace(/œ/g, 'oe')
@@ -124,16 +129,24 @@ const STOP = new Set([
   'und', 'oder', 'mit', 'ohne', 'auch', 'der', 'die', 'das', 'den', 'dem',
   'pax', 'ca', 'circa', 'menu', 'menue', '2025', '2026', 'auswahl', 'preis',
   'je', 'nach', 'als', 'style', 'serviert', 'vegan', 'vegetarisch', 'm', 'o',
+  'produkt', 'langbezeichnung', 'menge', 'einheit', 'auftraege', 'klassifizierung',
 ])
 
 function tokenList(value: string): string[] {
-  return normalizeText(value)
+  const normalized = normalizeText(value)
     .split(' ')
     .filter((t) => t.length > 1 && !STOP.has(t))
-}
-
-function tokenSet(value: string): Set<string> {
-  return new Set(tokenList(value))
+  const expanded: string[] = []
+  for (const token of normalized) {
+    expanded.push(token)
+    if (token.endsWith('smenue')) expanded.push(token.slice(0, -6))
+    if (token.endsWith('smenu')) expanded.push(token.slice(0, -5))
+    if (token.endsWith('menue')) expanded.push(token.slice(0, -5))
+    if (token.endsWith('menu')) expanded.push(token.slice(0, -4))
+    if (token.endsWith('snacks')) expanded.push(token.slice(0, -6))
+    if (token.endsWith('snack')) expanded.push(token.slice(0, -5))
+  }
+  return [...new Set(expanded.filter((t) => t.length > 1 && !STOP.has(t)))]
 }
 
 function levenshtein(a: string, b: string): number {
@@ -160,15 +173,24 @@ function charSimilarity(a: string, b: string): number {
   return 1 - levenshtein(na, nb) / Math.max(na.length, nb.length)
 }
 
-function tokenCoverage(source: string, candidate: string): number {
-  const sourceTokens = tokenSet(source)
-  const candidateTokens = tokenList(candidate)
-  if (sourceTokens.size === 0 || candidateTokens.length === 0) return 0
-  let hits = 0
-  for (const token of candidateTokens) {
-    if (sourceTokens.has(token)) hits++
+function tokenSimilarity(sourceToken: string, candidateToken: string): number {
+  if (sourceToken === candidateToken) return 1
+  if (sourceToken.length >= 4 && candidateToken.length >= 4) {
+    if (sourceToken.includes(candidateToken) || candidateToken.includes(sourceToken)) return 0.94
   }
-  return hits / candidateTokens.length
+  return 1 - levenshtein(sourceToken, candidateToken) / Math.max(sourceToken.length, candidateToken.length)
+}
+
+function tokenCoverage(source: string, candidate: string): number {
+  const sourceTokens = tokenList(source)
+  const candidateTokens = tokenList(candidate)
+  if (sourceTokens.length === 0 || candidateTokens.length === 0) return 0
+  let score = 0
+  for (const token of candidateTokens) {
+    const best = sourceTokens.reduce((max, sourceToken) => Math.max(max, tokenSimilarity(sourceToken, token)), 0)
+    if (best >= 0.84) score += best
+  }
+  return score / candidateTokens.length
 }
 
 function uniq(values: string[]): string[] {
@@ -253,12 +275,34 @@ function productWithoutVariant(value: string): string {
     .trim()
 }
 
+function buildOriginalImportText(row: ProduktbedarfRow): string {
+  return [
+    `Produkt: ${row.produkt}`,
+    `Langbezeichnung: ${row.langbezeichnung}`,
+    `Menge: ${row.menge}`,
+    `Einheit: ${row.einheit}`,
+    `Auftraege: ${row.auftraege}`,
+    `Klassifizierung: ${row.klassifizierung}`,
+  ].join('\n')
+}
+
 function aliasesForMenu(menu: ImportCatalogMenu): string[] {
   const base = [menu.menu_name, menu.menu_code, menu.category ?? '']
   const n = normalizeText(`${menu.menu_name} ${menu.category ?? ''}`)
   if (n.includes('fingerfood')) base.push('fingerfood', 'fingerfood abends', 'fingerfood 2025')
-  if (n.includes('fruhstuck') || n.includes('pausen')) {
-    base.push('pausensnacks', 'pausen snacks', 'fruehstueckssnacks', 'fruehstuecks pausensnacks', 'pausen fruehstueckssnacks')
+  if (n.includes('fruhstuck') || n.includes('fruehstueck') || n.includes('pausen')) {
+    base.push(
+      'fruehstueck',
+      'fruehstuecksmenue',
+      'fruehstuecks menu',
+      'fruehstuecks menue',
+      'fruehstueckssnacks',
+      'fruehstuecks pausensnacks',
+      'fruehstueck pause',
+      'pausensnacks',
+      'pausen snacks',
+      'pausen fruehstueckssnacks',
+    )
   }
   if (n.includes('grab')) base.push('grabngo', 'grab n go', 'grab and go', "grab'n'go")
   if (n.includes('lunch')) base.push('lunch', 'lunch 2025', 'lunch fs buffet')
@@ -276,8 +320,14 @@ export function matchMenu(productText: string, catalog: ImportCatalogMenu[]): Me
     return { menu: null, confidence: 0, strategy: 'no-match', needsReview: true, warnings: ['Kein Menu-Katalog geladen'] }
   }
 
-  let best: { menu: ImportCatalogMenu; score: number; strategy: MenuMatch['strategy'] } | null = null
+  type CandidateScore = {
+    menu: ImportCatalogMenu
+    score: number
+    strategy: MenuMatch['strategy']
+  }
 
+  const candidates: CandidateScore[] = []
+  const queryNorm = normalizeText(productText)
   for (const menu of catalog) {
     for (const alias of aliasesForMenu(menu)) {
       const aliasNorm = productWithoutVariant(alias)
@@ -285,35 +335,64 @@ export function matchMenu(productText: string, catalog: ImportCatalogMenu[]): Me
 
       let score = 0
       let strategy: MenuMatch['strategy'] = 'fuzzy'
+      const aliasTokens = tokenList(aliasNorm)
+      const exactPhrase = aliasNorm.length >= 4 && queryNorm.includes(aliasNorm)
       if (query === aliasNorm) {
         score = 1
         strategy = 'exact'
-      } else if (query.includes(aliasNorm) || aliasNorm.includes(query)) {
+      } else if (exactPhrase) {
+        score = aliasTokens.length <= 1 ? 0.9 : 0.98
+        strategy = 'alias'
+      } else if (aliasNorm.includes(query)) {
         score = 0.95
         strategy = 'alias'
       } else {
         const coverage = tokenCoverage(query, aliasNorm)
-        const fuzzy = charSimilarity(query, aliasNorm) * 0.9
-        score = Math.max(coverage, fuzzy)
+        const fuzzy = charSimilarity(query, aliasNorm) * (aliasTokens.length <= 1 ? 0.72 : 0.82)
+        const menuNameBoost = alias === menu.menu_name ? 0.05 : 0
+        const codePenalty = alias === menu.menu_code ? -0.08 : 0
+        score = Math.max(coverage, fuzzy) + menuNameBoost + codePenalty
         strategy = coverage >= fuzzy ? 'token' : 'fuzzy'
       }
 
-      if (!best || score > best.score) best = { menu, score, strategy }
+      candidates.push({
+        menu,
+        score: Math.max(0, Math.min(1, score)),
+        strategy,
+      })
     }
   }
 
+  const bestByMenu = [...candidates.reduce((map, candidate) => {
+    const existing = map.get(candidate.menu.id)
+    if (!existing || candidate.score > existing.score) map.set(candidate.menu.id, candidate)
+    return map
+  }, new Map<string, CandidateScore>()).values()].sort((a, b) => b.score - a.score)
+
+  const best = bestByMenu[0] ?? null
   if (!best) {
     return { menu: null, confidence: 0, strategy: 'no-match', needsReview: true, warnings: ['Kein passendes Menu gefunden'] }
   }
 
-  const needsReview = best.score < AUTO_MATCH_THRESHOLD
+  const runnerUp = bestByMenu[1] ?? null
+  const ambiguous = Boolean(
+    runnerUp &&
+    best.score < 0.98 &&
+    runnerUp.score >= AUTO_MATCH_THRESHOLD &&
+    best.score - runnerUp.score < 0.08,
+  )
+  const needsReview = best.score < AUTO_MATCH_THRESHOLD || ambiguous
   return {
     menu: needsReview ? null : best.menu,
     confidence: best.score,
     strategy: best.strategy,
     needsReview,
     warnings: needsReview
-      ? [`Menu-Treffer unter ${Math.round(AUTO_MATCH_THRESHOLD * 100)} Prozent: ${best.menu.menu_name}`]
+      ? [
+          ambiguous
+            ? `Mehrere aehnliche Menu-Treffer: ${best.menu.menu_name} (${Math.round(best.score * 100)} Prozent), ${runnerUp?.menu.menu_name} (${Math.round((runnerUp?.score ?? 0) * 100)} Prozent)`
+            : `Menu-Treffer unter ${Math.round(AUTO_MATCH_THRESHOLD * 100)} Prozent: ${best.menu.menu_name}`,
+        ]
       : [],
   }
 }
@@ -457,7 +536,8 @@ export function buildProduktbedarfImportDraft(rows: ProduktbedarfRow[], catalog:
     }
 
     const productText = `${row.produkt} ${row.langbezeichnung}`.trim()
-    const menuMatch = matchMenu(productText, catalog)
+    const originalImportText = buildOriginalImportText(row)
+    const menuMatch = matchMenu(`${productText}\n${row.auftraege}\n${row.klassifizierung}`, catalog)
     const variant = detectVariant(productText)
     const selectedItems = fillMissingVariantItems(
       reconstructSelectedItems(row.langbezeichnung, menuMatch.menu),
@@ -477,6 +557,7 @@ export function buildProduktbedarfImportDraft(rows: ProduktbedarfRow[], catalog:
         sourceRowNumber: index + 2,
         produkt: row.produkt,
         langbezeichnung: row.langbezeichnung,
+        originalImportText,
         menge: row.menge,
         einheit: row.einheit,
         klassifizierung: row.klassifizierung,

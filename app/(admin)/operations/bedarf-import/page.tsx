@@ -22,6 +22,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
@@ -47,6 +48,7 @@ type ReviewOrder = {
   source_row_number: number
   product_name: string
   long_description: string
+  original_import_text: string
   total_quantity: number
   event_pax: number
   unit: string
@@ -149,17 +151,6 @@ export default function BedarfImportPage() {
     replaceOrder(orderId, (order) => ({ ...order, ...patch, needs_review: true, status: 'needs_review' }))
   }
 
-  function setItem(orderId: string, index: number, patch: Partial<ReviewItem>) {
-    replaceOrder(orderId, (order) => ({
-      ...order,
-      needs_review: true,
-      status: 'needs_review',
-      selected_items: order.selected_items.map((item, itemIndex) =>
-        itemIndex === index ? { ...item, ...patch } : item,
-      ),
-    }))
-  }
-
   function selectPosition(orderId: string, index: number, positionId: string) {
     replaceOrder(orderId, (order) => {
       const menu = order.matched_menu_id ? menuById.get(order.matched_menu_id) : null
@@ -168,7 +159,7 @@ export default function BedarfImportPage() {
         itemIndex === index
           ? {
               ...item,
-              raw_position_text: position?.name ?? item.raw_position_text,
+              raw_position_text: item.raw_position_text,
               matched_menu_item_id: positionId === NO_POSITION ? null : position?.id ?? null,
               matched_recipe_id: position?.recipeIds[0] ?? null,
               confidence: position ? 1 : 0,
@@ -252,12 +243,12 @@ export default function BedarfImportPage() {
           ...current.selected_items,
           {
             sort_order: current.selected_items.length,
-            raw_position_text: position.name,
+            raw_position_text: '',
             matched_menu_item_id: position.id,
             matched_recipe_id: null,
             confidence: 1,
             needs_review: true,
-            original_text: position.name,
+            original_text: '',
             position_name: position.name,
           },
         ],
@@ -311,7 +302,7 @@ export default function BedarfImportPage() {
             matched_recipe_id: item.matched_recipe_id,
             confidence: item.confidence,
             needs_review: item.needs_review,
-            original_text: item.original_text || item.raw_position_text,
+            original_text: item.original_text,
             sort_order: index,
           })),
         })),
@@ -493,6 +484,22 @@ export default function BedarfImportPage() {
                             </div>
                           </div>
 
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Original-Rohtext</p>
+                            <Textarea
+                              readOnly
+                              value={order.original_import_text || [
+                                `Produkt: ${order.product_name}`,
+                                `Langbezeichnung: ${order.long_description}`,
+                                `Menge: ${order.total_quantity}`,
+                                `Einheit: ${order.unit}`,
+                                `Auftraege: ${order.raw_orders}`,
+                                `Klassifizierung: ${order.category}`,
+                              ].join('\n')}
+                              className="min-h-[6rem] resize-y bg-muted/40 font-mono text-xs"
+                            />
+                          </div>
+
                           <div className="flex flex-wrap items-center gap-2">
                             <Input
                               type="number"
@@ -522,8 +529,8 @@ export default function BedarfImportPage() {
                             <Table>
                               <TableHeader>
                                 <TableRow>
-                                  <TableHead className="min-w-[18rem]">Gewählte Position</TableHead>
-                                  <TableHead className="min-w-[14rem]">Rohtext</TableHead>
+                                  <TableHead className="min-w-[16rem]">Original-Positionstext</TableHead>
+                                  <TableHead className="min-w-[18rem]">Zugeordnete Position</TableHead>
                                   <TableHead className="w-28">Confidence</TableHead>
                                   <TableHead className="w-16" />
                                 </TableRow>
@@ -531,6 +538,11 @@ export default function BedarfImportPage() {
                               <TableBody>
                                 {order.selected_items.map((item, index) => (
                                   <TableRow key={`${order.id}-${index}`} className={item.needs_review ? 'bg-amber-50/50 dark:bg-amber-950/20' : undefined}>
+                                    <TableCell>
+                                      <p className="text-xs text-muted-foreground whitespace-pre-wrap">
+                                        {item.original_text || item.raw_position_text || 'Manuell hinzugefuegt'}
+                                      </p>
+                                    </TableCell>
                                     <TableCell>
                                       <Select
                                         value={item.matched_menu_item_id ?? NO_POSITION}
@@ -549,12 +561,6 @@ export default function BedarfImportPage() {
                                           ))}
                                         </SelectContent>
                                       </Select>
-                                    </TableCell>
-                                    <TableCell>
-                                      <Input
-                                        value={item.raw_position_text}
-                                        onChange={(event) => setItem(order.id, index, { raw_position_text: event.target.value, original_text: event.target.value })}
-                                      />
                                     </TableCell>
                                     <TableCell>
                                       <Badge variant={item.needs_review ? 'warning' : 'secondary'} className="text-[10px]">
