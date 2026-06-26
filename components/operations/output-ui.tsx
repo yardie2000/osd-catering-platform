@@ -1,6 +1,6 @@
 'use client'
 
-// Shared building blocks for the V5.1 Kitchen Operations dashboard
+// Shared building blocks for the V5.2 Kitchen Operations dashboard
 // (Production Output + Purchasing Output). Dense, dark, print-friendly.
 
 import { cn } from '@/lib/utils'

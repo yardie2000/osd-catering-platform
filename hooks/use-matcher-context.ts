@@ -10,6 +10,28 @@ type MatcherContextState = {
   error: string | null
 }
 
+type RawMatcherComponent = {
+  recipe_id: string | null
+}
+
+type RawMatcherPosition = {
+  id: string
+  name: string
+  position_code: string | null
+  position_components?: RawMatcherComponent[] | null
+}
+
+type RawMatcherMenuPosition = {
+  position: RawMatcherPosition | null
+}
+
+type RawMatcherMenu = {
+  id: string
+  menu_name: string
+  menu_code: string
+  menu_positions?: RawMatcherMenuPosition[] | null
+}
+
 /**
  * Loads the full menu catalog — including positions and their linked recipe IDs —
  * into the MatchableMenu[] shape expected by matchProdukt().
@@ -55,22 +77,21 @@ export function useMatcherContext(): MatcherContextState {
         if (error) throw error
         if (cancelled) return
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const menus: MatchableMenu[] = (data ?? []).map((row: any) => ({
+        const menus: MatchableMenu[] = ((data ?? []) as unknown as RawMatcherMenu[]).map((row) => ({
           id: row.id,
           menu_name: row.menu_name,
           menu_code: row.menu_code,
           positions: (row.menu_positions ?? [])
             // menu_positions may be an array of { position: Position | null }
-            .map((mp: any) => mp.position)
-            .filter(Boolean)
-            .map((pos: any) => ({
+            .map((mp) => mp.position)
+            .filter((pos): pos is RawMatcherPosition => Boolean(pos))
+            .map((pos) => ({
               id: pos.id,
               name: pos.name,
               position_code: pos.position_code ?? null,
               recipeIds: (pos.position_components ?? [])
-                .filter((c: any) => c.recipe_id)
-                .map((c: any) => c.recipe_id as string),
+                .map((component) => component.recipe_id)
+                .filter((recipeId): recipeId is string => Boolean(recipeId)),
             })),
         }))
 

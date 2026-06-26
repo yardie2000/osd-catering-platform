@@ -176,7 +176,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         </nav>
 
         <div className="border-t p-4 text-center">
-          <p className="text-[10px] text-muted-foreground">OSD Catering Platform V5.1</p>
+          <p className="text-[10px] text-muted-foreground">OSD Catering Platform V5.2</p>
         </div>
       </aside>
     </>

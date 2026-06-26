@@ -35,6 +35,9 @@ export type ImportEntityType =
   | 'menu_positions'
   | 'position_components'
   | 'supplier_products'
+  | 'imported_events'
+  | 'imported_event_orders'
+  | 'imported_event_selected_items'
 
 export interface ImportOptions {
   dryRun: boolean
@@ -161,7 +164,7 @@ export const MATCH_STATUS_LABELS: Record<MatchStatusOption, string> = {
   ignoriert: 'Ignoriert',
 }
 
-// V5.1 — kanonische Pflichtfelder der Rezeptbasis (snake_case, an Recipe-Typ ausgerichtet).
+// V5.2 — kanonische Pflichtfelder der Rezeptbasis (snake_case, an Recipe-Typ ausgerichtet).
 export const REZEPT_PFLICHTFELDER = [
   'name',
   'base_portions',

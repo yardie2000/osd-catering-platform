@@ -1,7 +1,7 @@
-# OSD Catering — Synology-Deploy ohne lokalen Build.
+# OSD Catering V5.2 — Synology-Deploy ohne lokalen Build.
 # Zieht das von GitHub Actions vorgebaute Image aus GHCR und hält es per
 # Watchtower automatisch aktuell. Nach dieser EINMALIGEN Umstellung deployt
-# sich jeder gemergte Stand von selbst — keine weitere Aktion nötig.
+# sich jeder Push auf main von selbst — keine weitere Aktion nötig.
 #
 # Einmalig einrichten (Container Manager):
 #   1) Projekt osd-catering -> Tab "YAML Configurations" -> kompletten Inhalt
@@ -11,6 +11,8 @@
 #   ghcr.io/yardie2000/osd-catering-platform  ist "public"
 #   (sonst Registry-Login in Container Manager nötig).
 # Die .env im Projektordner bleibt unverändert (3 Supabase-Vars + Tunnel-Token).
+# V5.2 benoetigt zusaetzlich die Migration
+# supabase/migrations/20260626000001_imported_event_orders.sql in der Live-DB.
 
 services:
   app:

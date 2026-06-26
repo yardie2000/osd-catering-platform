@@ -20,7 +20,7 @@ async function checkConnection(): Promise<{ status: ConnectionStatus; detail: st
       .from('units')
       .select('id', { head: true, count: 'exact' })
     if (error) return { status: 'error', detail: error.message }
-    return { status: 'ok', detail: 'Verbunden - Schema V5.1 aktiv' }
+    return { status: 'ok', detail: 'Verbunden - Schema V5.2 aktiv' }
   } catch (err) {
     return { status: 'error', detail: err instanceof Error ? err.message : 'Unbekannter Fehler' }
   }
@@ -39,7 +39,7 @@ export default async function SettingsPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <PageHeader title="Einstellungen" description="Plattformkonfiguration, Schema-Status und V5.1-Betrieb" />
+      <PageHeader title="Einstellungen" description="Plattformkonfiguration, Schema-Status und V5.2-Betrieb" />
       <div className="max-w-3xl space-y-6 p-4 sm:p-6 lg:p-8">
 
         {/* Connection status */}
@@ -81,14 +81,12 @@ export default async function SettingsPage() {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base">Schema-Status</CardTitle>
-              <Badge variant="success">V5.1</Badge>
+              <Badge variant="success">V5.2</Badge>
             </div>
           </CardHeader>
           <CardContent className="text-sm space-y-3 text-muted-foreground">
             <p className="text-xs">
-              Stammdaten, Rezepte und Menüs sind aktiv. In V5.1 ist die Menü-↔-Rezept-Verknüpfung
-              vereinheitlicht: Jede Menüzeile kann direkt in der Oberfläche mit einem Rezept verknüpft
-              werden — die Grundlage für die kommenden Produktions- und Einkaufsmodule.
+              Stammdaten, Rezepte, Menues und Positionen sind aktiv. In V5.2 ist der MouseClick-Produktbedarfimport als Review-Workflow verfuegbar: Events, verkaufte Menues, Varianten und tatsaechlich gewaehlte Kundenpositionen werden getrennt gespeichert.
             </p>
             <div className="grid grid-cols-1 gap-x-4 gap-y-1 font-mono text-xs sm:grid-cols-2">
               <span className="text-foreground">menus.menu_name</span>        <span>✓ aktiv</span>
@@ -97,6 +95,9 @@ export default async function SettingsPage() {
               <span className="text-foreground">menu_positions / position_components</span><span>✓ aktiv (Menü ↔ Position ↔ Komponenten)</span>
               <span className="text-foreground">recipes / recipe_ingredients</span><span>✓ aktiv</span>
               <span className="text-foreground">supplier_products</span>      <span>✓ aktiv</span>
+              <span className="text-foreground">imported_events</span>         <span>aktiv (MouseClick Events)</span>
+              <span className="text-foreground">imported_event_orders</span>   <span>aktiv (verkaufte Menues je Event)</span>
+              <span className="text-foreground">imported_event_selected_items</span><span>aktiv (Kundenauswahl je Order)</span>
               <span className="text-foreground">kitchen_batches</span>        <span>✓ aktiv (V4.1 — zentrale Planungseingabe)</span>
               <span className="text-foreground">kitchen_batch_items</span>   <span>✓ aktiv (Menü + Personenzahl)</span>
               <span className="text-foreground">production_batches</span>     <span>— Altbestand (vor V4.1)</span>
@@ -108,11 +109,11 @@ export default async function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* V5.1 Operations workflow */}
+        {/* V5.2 Operations workflow */}
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Betriebsablauf (V5.1)</CardTitle>
+              <CardTitle className="text-base">Betriebsablauf (V5.2)</CardTitle>
               <Badge variant="success">Aktiv</Badge>
             </div>
           </CardHeader>

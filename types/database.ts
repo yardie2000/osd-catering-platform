@@ -1,4 +1,4 @@
-// ── Auto-maintained TypeScript types for Supabase schema V5.1 ──
+// ── Auto-maintained TypeScript types for Supabase schema V5.2 ──
 
 export type Json = string | number | boolean | null | { [key: string]: Json } | Json[]
 
@@ -91,6 +91,34 @@ export type Database = {
         Update:        DataImportLogUpdate
         Relationships: [
           { foreignKeyName: 'data_import_log_import_job_id_fkey'; columns: ['import_job_id']; referencedRelation: 'import_jobs'; referencedColumns: ['id'] }
+        ]
+      }
+      imported_events: {
+        Row:           ImportedEvent
+        Insert:        ImportedEventInsert
+        Update:        ImportedEventUpdate
+        Relationships: [
+          { foreignKeyName: 'imported_events_import_job_id_fkey'; columns: ['import_job_id']; referencedRelation: 'import_jobs'; referencedColumns: ['id'] }
+        ]
+      }
+      imported_event_orders: {
+        Row:           ImportedEventOrder
+        Insert:        ImportedEventOrderInsert
+        Update:        ImportedEventOrderUpdate
+        Relationships: [
+          { foreignKeyName: 'imported_event_orders_imported_event_id_fkey'; columns: ['imported_event_id']; referencedRelation: 'imported_events'; referencedColumns: ['id'] },
+          { foreignKeyName: 'imported_event_orders_import_job_id_fkey'; columns: ['import_job_id']; referencedRelation: 'import_jobs'; referencedColumns: ['id'] },
+          { foreignKeyName: 'imported_event_orders_matched_menu_id_fkey'; columns: ['matched_menu_id']; referencedRelation: 'menus'; referencedColumns: ['id'] }
+        ]
+      }
+      imported_event_selected_items: {
+        Row:           ImportedEventSelectedItem
+        Insert:        ImportedEventSelectedItemInsert
+        Update:        ImportedEventSelectedItemUpdate
+        Relationships: [
+          { foreignKeyName: 'imported_event_selected_items_imported_event_order_id_fkey'; columns: ['imported_event_order_id']; referencedRelation: 'imported_event_orders'; referencedColumns: ['id'] },
+          { foreignKeyName: 'imported_event_selected_items_matched_menu_item_id_fkey'; columns: ['matched_menu_item_id']; referencedRelation: 'positions'; referencedColumns: ['id'] },
+          { foreignKeyName: 'imported_event_selected_items_matched_recipe_id_fkey'; columns: ['matched_recipe_id']; referencedRelation: 'recipes'; referencedColumns: ['id'] }
         ]
       }
       purchasing_lists: {
@@ -213,7 +241,7 @@ export type Recipe = {
   recipe_code:         string
   name:                string
   description:         string | null
-  base_portions:       number | null   // V5.1 Basisportionen; App erzwingt Pflicht, DB bleibt nullable
+  base_portions:       number | null   // V5.2 Basisportionen; App erzwingt Pflicht, DB bleibt nullable
   yield_quantity:      number | null
   yield_unit_id:       string | null
   preparation:         string | null
@@ -221,8 +249,8 @@ export type Recipe = {
   production_notes:    string | null
   shelf_life:          string | null
   scalable:            boolean
-  production_loss_pct: number | null   // V5.1 per-recipe override; null -> global default
-  yield_pct:           number | null   // V5.1 per-recipe override; null -> global default
+  production_loss_pct: number | null   // V5.2 per-recipe override; null -> global default
+  yield_pct:           number | null   // V5.2 per-recipe override; null -> global default
   created_at:          string
   updated_at:          string
 }
@@ -422,6 +450,121 @@ export type DataImportLog = {
 export type DataImportLogInsert = Omit<DataImportLog, 'id' | 'created_at'>
 export type DataImportLogUpdate = Partial<DataImportLogInsert>
 
+// ── imported MouseClick event orders ───────────────────────
+
+export type ImportedReviewStatus =
+  | 'matched'
+  | 'needs_review'
+  | 'reviewed'
+  | 'calculated'
+  | 'failed'
+
+export type ImportedEvent = {
+  id:                    string
+  import_job_id:          string | null
+  event_name:             string
+  normalized_event_name:  string
+  pax_count:              number
+  status:                 ImportedReviewStatus
+  warnings:               string[]
+  source_filename:        string | null
+  imported_at:            string
+  reviewed_at:            string | null
+  created_at:             string
+  updated_at:             string
+}
+
+export type ImportedEventInsert = {
+  import_job_id?:         string | null
+  event_name:             string
+  normalized_event_name:  string
+  pax_count?:             number
+  status?:                ImportedReviewStatus
+  warnings?:              string[]
+  source_filename?:       string | null
+  imported_at?:           string
+  reviewed_at?:           string | null
+}
+export type ImportedEventUpdate = Partial<ImportedEventInsert>
+
+export type ImportedEventOrder = {
+  id:                    string
+  imported_event_id:      string
+  import_job_id:          string | null
+  source_row_number:      number
+  product_name:           string
+  long_description:       string
+  total_quantity:         number
+  event_pax:              number
+  unit:                   string
+  category:               string
+  raw_orders:             string
+  raw_event_order:        string
+  matched_menu_id:        string | null
+  matched_menu_name:      string | null
+  menu_confidence:        number
+  menu_match_strategy:    string
+  variant_label:          string | null
+  variant_item_count:     number | null
+  variant_confidence:     number
+  status:                 ImportedReviewStatus
+  needs_review:           boolean
+  warnings:               string[]
+  created_at:             string
+  updated_at:             string
+}
+
+export type ImportedEventOrderInsert = {
+  imported_event_id:      string
+  import_job_id?:         string | null
+  source_row_number:      number
+  product_name:           string
+  long_description?:      string
+  total_quantity?:        number
+  event_pax?:             number
+  unit?:                  string
+  category?:              string
+  raw_orders?:            string
+  raw_event_order?:       string
+  matched_menu_id?:       string | null
+  matched_menu_name?:     string | null
+  menu_confidence?:       number
+  menu_match_strategy?:   string
+  variant_label?:         string | null
+  variant_item_count?:    number | null
+  variant_confidence?:    number
+  status?:                ImportedReviewStatus
+  needs_review?:          boolean
+  warnings?:              string[]
+}
+export type ImportedEventOrderUpdate = Partial<Omit<ImportedEventOrderInsert, 'imported_event_id'>>
+
+export type ImportedEventSelectedItem = {
+  id:                       string
+  imported_event_order_id:   string
+  sort_order:               number
+  raw_position_text:         string
+  matched_menu_item_id:      string | null
+  matched_recipe_id:         string | null
+  confidence:                number
+  needs_review:              boolean
+  original_text:             string
+  created_at:                string
+  updated_at:                string
+}
+
+export type ImportedEventSelectedItemInsert = {
+  imported_event_order_id:   string
+  sort_order?:              number
+  raw_position_text?:        string
+  matched_menu_item_id?:     string | null
+  matched_recipe_id?:        string | null
+  confidence?:               number
+  needs_review?:             boolean
+  original_text?:            string
+}
+export type ImportedEventSelectedItemUpdate = Partial<Omit<ImportedEventSelectedItemInsert, 'imported_event_order_id'>>
+
 // ── future module stubs ───────────────────────────────────
 
 export type Event = {
@@ -552,7 +695,7 @@ export type KitchenBatchWithItems = KitchenBatch & {
   kitchen_batch_items: KitchenBatchItemWithMenu[]
 }
 
-// ── supplier_articles / EK-Mapping (V5.1) ─────────────────────
+// ── supplier_articles / EK-Mapping (V5.2) ─────────────────────
 // (Supplier-Row-Typ ist oben definiert; hier nur Insert/Update + Artikel.)
 
 export type SupplierInsert =

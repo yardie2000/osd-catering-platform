@@ -153,7 +153,7 @@ export const recipesService = {
     return [...allergens].sort()
   },
 
-  // V5.1 — Backfill: set base_portions = yield_quantity for recipes that still
+  // V5.2 — Backfill: set base_portions = yield_quantity for recipes that still
   // have no base_portions but a usable yield_quantity. Fills NULLs only,
   // derived from existing data (non-destructive). Returns the number updated.
   async backfillBasePortionsFromYield(): Promise<number> {

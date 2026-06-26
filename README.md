@@ -1,15 +1,15 @@
-# OSD Catering Platform V5.1
+# OSD Catering Platform V5.2
 
 Operative Catering-Kalkulations- und Kuechenplanungsplattform fuer OSD Event GmbH.
 
 Die App verwaltet Stammdaten, Rezepte, Menues, Produktionslaeufe, Importdaten und Einkaufsbedarfe. Aus verkauften Menues und Gaestezahlen entstehen nachvollziehbare Produktions- und Einkaufslisten auf derselben Berechnungsbasis.
 
-Autoritative Spezifikation: [OSD_CATERING_PLATFORM_V5_1_SPEC.md](OSD_CATERING_PLATFORM_V5_1_SPEC.md)
+Autoritative Spezifikation: [OSD_CATERING_PLATFORM_V5_2_SPEC.md](OSD_CATERING_PLATFORM_V5_2_SPEC.md)
 
 ## Status
 
-Release: V5.1
-Package: `osd-catering-platform@5.1.0`
+Release: V5.2
+Package: `osd-catering-platform@5.2.0`
 Deployment: GitHub Actions baut das Docker-Image und veroeffentlicht es in GHCR; Synology aktualisiert den Container per Watchtower.
 
 ## Kernmodule
@@ -18,6 +18,7 @@ Deployment: GitHub Actions baut das Docker-Image und veroeffentlicht es in GHCR;
 - Stammdaten: Einheiten, Zutaten, Rezepte, Menues.
 - Menuepositionen mit Rezeptverknuepfung.
 - Importcenter fuer Excel- und Bedarf-Importe.
+- MouseClick-Produktbedarfimport mit Event-, Menue-, Varianten- und Positionsreview.
 - Validierung und Datenqualitaet.
 - Produktionslaeufe mit Menue- und Pax-Eingabe.
 - Produktionsausgabe aus Rezeptaggregation.
@@ -31,7 +32,7 @@ Production und Purchasing sind keine getrennten Eingaben. Beide Ausgaben entsteh
 
 ```text
 Verkaufte Menues
-  -> Produktionslauf mit Menue + Pax
+  -> gepruefter Import oder Produktionslauf mit Menue + Pax
     -> Rezeptaggregation
       -> Produktionsausgabe
       -> Einkaufsausgabe
@@ -92,6 +93,9 @@ Der Workflow:
 4. Synology Watchtower zieht automatisch das neue `latest`-Image und ersetzt den App-Container.
 
 Synology-Compose-Referenz: [docker-compose.synology.yml](docker-compose.synology.yml)
+
+V5.2 benoetigt vor produktiver Nutzung die additive Migration
+`supabase/migrations/20260626000001_imported_event_orders.sql` in der Live-Supabase-Datenbank.
 
 ## Environment
 

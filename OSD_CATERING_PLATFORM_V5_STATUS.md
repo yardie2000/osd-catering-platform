@@ -1,163 +1,136 @@
-# OSD Catering — V5 Status & Übergabe (Fortsetzung in neuem Chat)
+# OSD Catering - V5.2 Status & Release Notes
 
-Stand-Dokument für die **Weiterführung in einem neuen Chat** (Phase 4 ff.).
-App-Version **4.5.0** (`package.json`, Sidebar-Footer). Feature-Linie: **geteilter
-Positions-Katalog (Stückliste/Komponenten)**. Branch: `claude/magical-hamilton-8042cf`.
+Stand: 2026-06-26
+App-Version: 5.2.0
+Branch: main
+Deployment: GitHub Actions -> GHCR -> Synology Watchtower
 
-Zugehörige Specs: [Komponenten](OSD_CATERING_PLATFORM_KOMPONENTEN_SPEC.md) ·
-[Positionen](OSD_CATERING_PLATFORM_POSITIONEN_SPEC.md).
+Zugehoerige Specs:
 
----
+- [V5.2 Produktspezifikation](OSD_CATERING_PLATFORM_V5_2_SPEC.md)
+- [Positionen](OSD_CATERING_PLATFORM_POSITIONEN_SPEC.md)
+- [Komponenten](OSD_CATERING_PLATFORM_KOMPONENTEN_SPEC.md)
 
-## 1. Was fertig ist (live, verifiziert)
+## 1. Release-Ziel V5.2
 
-**Phase 1 — Schema** ✓ · **Phase 2 — Engine** ✓ · **Phase 3 — UI (Katalog + Menü-Editor)** ✓ ·
-**Phase 4 — Dubletten-Merge + Import-Blätter** ✓ **live-verifiziert** (Merge + alle 3 Import-Blätter
-inkl. Idempotenz am 2026-06-22 live durchgespielt; statisch: tsc/lint/build/Tests grün) ·
-**Phase 5 — Legacy-Cutover** ◑ Code fertig & grün (tsc/lint/build/Tests); **DROP-Migration noch vom User
-auszuführen** (siehe §5).
+V5.2 korrigiert den fachlichen MouseClick-Produktbedarfimport. Der Import behandelt die CSV nicht mehr als Menuekatalog und erzeugt keine Produktionsdaten aus allen Positionen eines Menues.
 
-Datenmodell-Hierarchie (aktiv):
+Neue fachliche Kette:
+
+```text
+CSV
+  -> Parser
+  -> Events
+  -> verkauftes Menue
+  -> Menuevariante
+  -> tatsaechlich gewaehlte Kundenpositionen
+  -> Review
+  -> Rezepte
+  -> Produktion
+  -> Einkauf
 ```
-Menü → menu_positions → positions → position_components → recipe/ingredient → recipe_ingredients → Zutat
+
+## 2. Fertig in V5.2
+
+- Additive Supabase-Migration fuer:
+  - `imported_events`
+  - `imported_event_orders`
+  - `imported_event_selected_items`
+- Pure Import-Pipeline in `lib/produktbedarf/importPipeline.ts`.
+- MouseClick-Auftrags-Splitting: eine CSV-Zeile kann mehrere Events erzeugen.
+- Menue-Matching gegen `menus`, nicht gegen Rezepte oder Zutaten.
+- Varianten-Erkennung fuer Teile-Varianten und Betriebsformen wie Lunch, Grab and Go, BBQ, Family Style und Buffet.
+- Positions-Rekonstruktion aus der Langbezeichnung gegen `positions` des gematchten Menues.
+- Explizite Review-Items fuer nicht erkannte oder fehlende Positionen.
+- API-Route `/api/product-demand-import` fuer Import, Laden und Speichern der Review-Daten.
+- Neue Review-Oberflaeche unter `/operations/bedarf-import`.
+- Review-Funktionen:
+  - Menue aendern
+  - Variante aendern
+  - Pax korrigieren
+  - Position hinzufuegen
+  - Position entfernen
+  - Position austauschen
+  - neue Position anlegen und dem Menue zuordnen
+  - Zuordnung speichern
+- Tests fuer Parser, Event-Splitting, Menue-/Variantenmatching, Positionsauswahl und Review-Status.
+
+## 3. Datenmodell-Hierarchie
+
+Aktiver Masterkatalog:
+
+```text
+Menue -> menu_positions -> positions -> position_components -> recipe/ingredient -> recipe_ingredients -> ingredient
 ```
-- **Geteilte Positionen**: eine Position einmal pflegen, in mehreren Menüs nutzen.
-- **Komponenten** (Rezept ODER Zutat, Menge/Portion) hängen an der **Position**.
-- Engine ist **2-stufig**: Rezept-Komponente → Vorproduktion (Produktionsplan) + deren Roh-Zutaten in den Einkauf; Zutat-Komponente → direkt Einkauf.
-- **Legacy-Fallback**: `menu_items` + `menu_item_components` existieren noch; die Engine nutzt sie nur, wenn ein Menü keine `menu_positions` hat.
 
-## 2. DB-Stand (Live-Supabase, alle Migrationen eingespielt)
+Importierte Verkaufsdaten:
 
-Tabellen: `units, ingredients, recipes, recipe_ingredients, menus, menu_items` (legacy),
-`menu_item_components` (legacy), **`positions`, `menu_positions`, `position_components`** (neu),
-`import_jobs, data_import_log`, + Stub-/Batch-Tabellen.
+```text
+imported_events
+  -> imported_event_orders
+    -> imported_event_selected_items
+```
 
-Datenmengen (live): **92 positions** (1:1 aus menu_items migriert, **inкл. Dubletten** wie
-„Blechkuchen" 2×), **92 menu_positions**, **83 position_components** (80 Rezept- + 3 Zutat-Komp.);
-86 recipes, 171 ingredients, 14 units, 9 menus.
+Wichtig: `imported_event_selected_items` enthaelt ausschliesslich tatsaechlich erkannte oder manuell bestaetigte Kundenpositionen. Diese Tabelle darf nicht aus allen Positionen eines Menues automatisch befuellt werden.
 
-Migrationen (in `supabase/migrations/`, alle in der Live-DB):
-- `20260616000000_menu_item_components.sql` (Komponenten an menu_items, Backfill)
-- `20260616000001_positions_catalog.sql` (positions/menu_positions/position_components + 1:1-Migration)
-- (frühere: `20260604000000_menu_items_standalone_columns.sql` u. a.)
+## 4. Migrationen
 
-## 3. Code-Landkarte
+Neu fuer V5.2:
 
-- **Engine:** `lib/purchasing/aggregate.ts` (`explodeMenuRows`, `aggregatePurchasing`,
-  Komponenten-Typen), `lib/production/plan.ts` (`buildProductionPlan` → Vorproduktion),
-  `lib/operations/calcMenu.ts` (`buildCalcMenus`: menu_positions→CalcMenu, Legacy-Fallback),
-  `lib/operations/computeBatchOutputs.ts`.
-- **Daten/Services:** `services/positions.service.ts` (+ `hooks/use-positions.ts`),
-  `services/menus.service.ts` (menu_positions-CRUD, + `hooks/use-menus.ts`),
-  `services/purchasing.service.ts` (`getMenusForCalc` lädt Positions-Pfad).
-- **UI:** `app/(admin)/master-data/positions/page.tsx` (Katalog), 
-  `components/master-data/positions/position-components-dialog.tsx` + `position-picker.tsx`,
-  `components/master-data/menus/menu-positions-manager.tsx`,
-  `app/(admin)/master-data/menus/[id]/page.tsx` (auf Katalog umgebaut),
-  `components/layout/sidebar.tsx` (Eintrag „Positionen"). 
-  `app/(admin)/operations/production/page.tsx` (Abschnitt „Vorproduktion").
-- **Typen:** `types/database.ts` (Position/MenuPosition/PositionComponent + Database-Tables-Einträge).
-- **Tests:** `tests/calc.test.ts` (27 Tests: Engine + Komponenten + buildCalcMenus), `tests/produktbedarf.test.ts` (10),
-  `tests/positions-import.test.ts` (12: Import-Schemas der 3 neuen Blätter). `npm test` läuft jetzt alle drei.
-- **Phase-4-Code (neu):** `lib/importers/PositionImporter.ts` (importPositions/importMenuPositions/importPositionComponents),
-  Schemas in `lib/importers/ValidationEngine.ts` (positionRowSchema/menuPositionRowSchema/positionComponentRowSchema),
-  Verdrahtung + SHEET_MAP + Summary in `lib/importers/ExcelImportEngine.ts`,
-  `positionsService.merge()` in `services/positions.service.ts` + `useMergePositions` in `hooks/use-positions.ts`,
-  `components/master-data/positions/position-merge-dialog.tsx`, „Zusammenführen"-Button in `app/(admin)/master-data/positions/page.tsx`,
-  Hinweistext in `app/(admin)/operations/imports/page.tsx`.
-- **Verwaist** (nicht mehr genutzt, kann später weg): `components/master-data/menus/menu-item-components-dialog.tsx`.
-- **Wegwerf-Helfer** (NICHT committen, löschen): `zukauf_rezepte.cjs`.
+- `supabase/migrations/20260626000001_imported_event_orders.sql`
 
-## 4. Phase 4 — fertig (gebaut)
+Die Migration ist additiv und veraendert keine Masterdaten.
 
-- **4a — Dubletten-Zusammenführen-Werkzeug** ✓: „Zusammenführen"-Button je Positionszeile →
-  Dialog wählt Zielposition (Picker). `positionsService.merge(sourceId, targetId)` hängt um:
-  `menu_positions` der Quelle als neue Ziel-Zuordnungen anlegen (sort_order/price_override
-  übernommen), Konflikte (Ziel im selben Menü schon vorhanden, UNIQUE menu_id+position_id)
-  entfallen; `position_components` der Quelle, die das Ziel (nach recipe/ingredient) noch nicht
-  hat, ans Ziel anhängen — Rest verwirft der Cascade; dann Quelle löschen. **Client-seitig**
-  (kein neues Migration/RPC nötig, nutzt anon/authenticated FOR ALL-Policies). Umhängen per
-  delete+insert, weil die Update-Typen `menu_id`/`position_id` bewusst sperren.
-- **4b — Import-Blätter** ✓: `positions` (position_code, name, description, dietary, allergens,
-  default_price · Upsert per position_code · Schritt 8), `menu_positions` (menu_code, position_code,
-  sort_order, price_override · Upsert onConflict menu_id,position_id · Schritt 9), `position_components`
-  (position_code, recipe_code|ingredient_code, quantity, unit_code, sort_order · Full-Replace je
-  Position · Schritt 10). Matching durchgehend über *_code; Engine importiert nach menu_items.
-  Aliase in `SHEET_MAP` (positions/positionen, menu_positions, position_components/positions_komponenten),
-  Header in Zeile 0 (range 0 wie menu_items).
-  - *Bekannte Grenze:* in einem reinen **Dry-Run** mit brandneuen Zutaten/Einheiten werden diese in
-    `position_components` nicht aufgelöst (Komponenten-Importer liest Rezepte/Zutaten/Einheiten frisch
-    aus der DB + überlagert nur die Rezept-Code-Map des Laufs). Im echten Lauf sind sie zum Zeitpunkt
-    des Komponenten-Imports bereits geschrieben → werden gefunden. Als Warnung protokolliert.
+Vor produktiver Nutzung muss diese Migration in der Live-Supabase-Datenbank ausgefuehrt sein. Ohne diese Tabellen kann die Review-API nicht persistieren.
 
-## 5. Phase 5 — Cutover (Code fertig; DROP-Migration vom User auszuführen)
+## 5. Verifikation
 
-**Code-Umbau fertig & grün** (2026-06-22): alle DB-gekoppelten Legacy-Pfade entfernt —
-`menu_items`/`menu_item_components` werden nirgends mehr gelesen/geschrieben. Geändert:
-`services/purchasing.service.ts` (getMenusForCalc nur noch menu_positions),
-`lib/operations/calcMenu.ts` (Fallback raus), `services/menus.service.ts` (Legacy-Item-Methoden raus,
-getById → `Menu`), `hooks/use-menus.ts` (Legacy-Hooks raus), Importer
-(`MenuItemImporter.ts` + `menu-item-components-dialog.tsx` **gelöscht**, ExcelImportEngine/ValidationEngine
-ohne menu_items-Blatt), `types/database.ts` + `types/index.ts` (MenuItem*-Typen + Tabellen-Einträge raus),
-Settings-/Import-Hinweistexte, `tests/calc.test.ts` (Fallback-Test → „keine Positionen ⇒ leer").
-Die **Engine-Typen** `CalcMenu.menu_items` (in `aggregate.ts`/`plan.ts`) sind das interne Rechenmodell,
-**nicht** die DB-Tabelle → bewusst unverändert.
+Lokal erfolgreich:
 
-**Noch offen — DROP-Migration ausführen (DESTRUKTIV, User):**
-`supabase/migrations/20260617000000_drop_legacy_menu_items.sql` im Supabase SQL-Editor laufen lassen
-**nach DB-Backup**. Sie ist selbst-sichernd (bricht ab, falls ein Menü ohne menu_positions existiert) und
-droppt dann `menu_item_components` + `menu_items`. Voraussetzung war am 2026-06-22 erfüllt (0 Menüs am Fallback).
-Reihenfolge ist gefahrlos: der Code läuft mit **und** ohne die Tabellen, also Code zuerst (gepusht), Drop danach.
+- `npm test` -> 72 Tests gruen
+- `npm run type-check` -> gruen
+- Smoke-Test `/operations/bedarf-import` -> HTTP 200
+- Smoke-Test `/api/product-demand-import` ohne `jobId` -> erwarteter HTTP 400
+- Real-CSV-Analyse mit `Produktbedarf_2026-06-26_03-21-06.csv`:
+  - 69 CSV-Zeilen
+  - 63 rekonstruierte Events
+  - 187 importierte Event-Orders
 
-## 6. Betriebs-Fakten / Gotchas (wichtig für den neuen Chat)
+Beispiel Fingerfood 6 Teile:
 
-- **Worktree:** `D:\Downloads\files\catering-platform-v4_2\.claude\worktrees\magical-hamilton-8042cf`.
-  `node_modules` lokal via `npm install --legacy-peer-deps` (React-19-RC-Peer-Konflikt).
-- **Dev-Server:** `npm run dev` (Turbopack). Bei „missing required error components, refreshing…"
-  → Dev-Server neu starten (Turbopack-Hänger nach vielen Hot-Reloads, kein Code-Fehler).
-- **Build:** `next build` braucht Supabase-Env, sonst Prerender-Fehler `supabaseUrl is required`.
-  Zum Verifizieren Platzhalter: `NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=x SUPABASE_SERVICE_ROLE_KEY=x npx next build`.
-- **`.env.local`** vorhanden (gitignored), `service_role`-Key korrekt → DB-Schreiben/Lesen geht.
-- **Lint:** `npx eslint .` (Flat-Config). **Tests:** `node --import ./tests/register.mjs --test tests/calc.test.ts tests/produktbedarf.test.ts`.
-- **DB-Checks ad hoc:** Node-Skript mit `@supabase/supabase-js`, `.env.local` parsen, `NODE_PATH=<repo>/node_modules` (parent-Repo hat node_modules).
-- **GitHub:** privates Repo `yardie2000/osd-catering-platform`. **Push muss der User machen** —
-  Agent-Push wird von der Datenschutz-Sperre blockiert (Kundendaten in `output/`). `gh` ist NICHT installiert.
-- **Sicherheitsschranke:** Batch-DB-Schreibvorgänge mit vom Agent „geratenen" Parametern können
-  blockiert werden → dann SQL/Skript vom User ausführen lassen (Muster: Migrationen im SQL-Editor).
-- **Kundendaten:** `output/` enthält echte Kundennamen → privat halten, nicht öffentlich pushen.
+- Menue: `FINGERFOOD ABENDS`
+- Variante: `6 Teile`
+- erkannte Positionen: 5
+- fehlende Position: explizites Review-Item
+- Status: `needs_review`
 
-## 7. Offener Commit-Stand (Phasen 1–4, noch nicht committet)
+## 6. Deployment
 
-Geändert: `app/(admin)/master-data/menus/[id]/page.tsx`, `app/(admin)/operations/imports/page.tsx`,
-`app/(admin)/operations/production/page.tsx`, `components/layout/sidebar.tsx`, `hooks/use-menus.ts`,
-`lib/importers/ExcelImportEngine.ts`, `lib/importers/ValidationEngine.ts`, `lib/production/plan.ts`,
-`lib/purchasing/aggregate.ts`, `package.json` (test-Skript), `services/batch.service.ts`,
-`services/menus.service.ts`, `services/purchasing.service.ts`, `tests/calc.test.ts`, `types/database.ts`.
-Neu: beide Specs + dieses Status-Dokument, `app/(admin)/master-data/positions/`,
-`components/master-data/menus/menu-positions-manager.tsx`, `components/master-data/menus/menu-item-components-dialog.tsx`,
-`components/master-data/positions/` (inkl. `position-merge-dialog.tsx`), `hooks/use-positions.ts`,
-`lib/importers/PositionImporter.ts`, `lib/operations/calcMenu.ts`, `services/positions.service.ts`,
-`tests/positions-import.test.ts`, beide neuen Migrationen.
-**Empfohlener Commit** (Push durch User): „Add shared positions catalog (schema, engine, UI, merge tool, import sheets) + component model — Phases 1–4". `zukauf_rezepte.cjs` dabei **auslassen**.
+Produktionsweg:
 
-> 4a/4b brauchen **keine** neue Migration — beide nutzen die in Phase 1 angelegten Tabellen/Policies.
+1. Push nach `main`.
+2. GitHub Actions baut und pusht:
+   - `ghcr.io/yardie2000/osd-catering-platform:latest`
+   - `ghcr.io/yardie2000/osd-catering-platform:<git-sha>`
+3. Synology Watchtower zieht automatisch das neue `latest`-Image.
+4. Container `osd-catering` wird ersetzt.
 
-## 8. Verifikationsstand
+Synology Compose:
 
-**Phasen 1–3:** Typecheck ✓ · Lint ✓ · Build ✓ · Live-Smoke ✓ (Positionen-Katalog, Menü-Editor +
-Picker, Komponenten-Dialoge, Bedarfs-Embed).
+- `docker-compose.synology.yml`
+- App-Container: `osd-catering`
+- Tunnel-Container: `osd-cloudflared`
+- Watchtower: `osd-watchtower`
 
-**Phase 4 (statisch, im Worktree magical-hamilton):** `tsc --noEmit` ✓ · `eslint .` ✓ ·
-**49 Tests ✓** (27 calc + 10 produktbedarf + 12 positions-import; node-Test-Runner zählt bei
-Mehr-Datei-Läufen die Summe kosmetisch zu niedrig, einzeln je Datei verifiziert, 0 Fehler) ·
-`next build` mit Platzhalter-Env ✓ (Route `/master-data/positions` 10.3 kB inkl. Merge-Dialog).
+## 7. Offene operative Schritte
 
-**Phase 4 Live-Smoke ✓ (2026-06-22, vom User durchgeführt):**
-- **Merge:** `/master-data/positions` → „Zusammenführen" an einer Dublette → funktioniert.
-- **Import:** Test-`.xlsx` mit allen drei Blättern (`positions`/`menu_positions`/`position_components`),
-  echte Codes (Menü `MENU_LUNCH_2026`, Rezept `SAU-003`, Zutat `ZUK-I-01`) — Testlauf + echter Import +
-  Idempotenz (erneutes Hochladen erzeugt keine Dubletten) bestätigt. Testpositionen `POS-TEST-1/2`
-  danach wieder entfernt.
+- V5.2-Migration in Live-Supabase ausfuehren, falls noch nicht angewendet.
+- GitHub Actions Lauf nach Push pruefen.
+- Synology Watchtower-Logs pruefen oder Container manuell neu ziehen, falls das Update nicht innerhalb von 5 Minuten kommt.
+- Danach Import im Browser unter `/operations/bedarf-import` mit der echten CSV testen und Review speichern.
 
-> Hinweis: Der Preview-/Dev-Server des Harness hängt am Primär-Worktree (`elated-carson-…`, V4.3); das
-> Live-Smoke lief im `magical-hamilton`-Worktree gegen die echte Supabase per `npm run dev`.
+## 8. Sicherheit
+
+- Keine produktiven Supabase-Credentials wurden im Repository gespeichert.
+- `.env.local` bleibt gitignored.
+- Die App bleibt ein internes Operations-Tool ohne produktive Auth-Schicht.
