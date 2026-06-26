@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation'
 import { ArrowLeft, Pencil, Scale } from 'lucide-react'
 
 import { useRecipe, useRecipeAllergens } from '@/hooks/use-recipes'
+import { usePreferredSuppliers } from '@/hooks/use-supplier-articles'
 import { PageHeader } from '@/components/layout/page-header'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -41,6 +42,7 @@ export default function RecipeDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { data: recipe, isLoading, isError, error } = useRecipe(id)
   const { data: allergens = [] } = useRecipeAllergens(id)
+  const { data: preferredSuppliers = {} } = usePreferredSuppliers()
 
   if (isLoading) {
     return <div className="p-6">Laden…</div>
@@ -194,15 +196,25 @@ export default function RecipeDetailPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  recipe.recipe_ingredients.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.ingredient?.name ?? '—'}</TableCell>
-                      <TableCell className="text-right">{formatNumber(item.quantity, 3)}</TableCell>
-                      <TableCell>{item.unit?.short_name || item.unit?.name || '—'}</TableCell>
-                      <TableCell className="text-muted-foreground">{item.supplier ?? '—'}</TableCell>
-                      <TableCell className="text-muted-foreground">{item.notes ?? '—'}</TableCell>
-                    </TableRow>
-                  ))
+                  recipe.recipe_ingredients.map((item) => {
+                    const preferred = item.ingredient ? preferredSuppliers[item.ingredient.id] : undefined
+                    const supplierLabel = preferred ?? item.supplier ?? null
+                    return (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-medium">{item.ingredient?.name ?? '—'}</TableCell>
+                        <TableCell className="text-right">{formatNumber(item.quantity, 3)}</TableCell>
+                        <TableCell>{item.unit?.short_name || item.unit?.name || '—'}</TableCell>
+                        <TableCell>
+                          {supplierLabel ? (
+                            <span className={preferred ? 'font-medium' : 'text-muted-foreground'}>{supplierLabel}</span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{item.notes ?? '—'}</TableCell>
+                      </TableRow>
+                    )
+                  })
                 )}
               </TableBody>
             </Table>
