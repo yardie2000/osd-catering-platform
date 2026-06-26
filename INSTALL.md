@@ -1,4 +1,4 @@
-# OSD Catering Platform V5.2 - Installation & Deployment
+# OSD Catering Platform V5.2.1 - Installation & Deployment
 
 ## Local development
 
@@ -54,11 +54,12 @@ ghcr.io/yardie2000/osd-catering-platform:latest
 
 Watchtower checks for a new image and restarts the app container automatically.
 
-Before using the V5.2 MouseClick product-demand review import, apply this migration
+Before using the V5.2.1 MouseClick product-demand review import and PDF catalog corrections, apply these migrations
 to the live Supabase database:
 
 ```text
 supabase/migrations/20260626000001_imported_event_orders.sql
+supabase/migrations/20260626000003_pdf_catalog_addons_recipe_stubs.sql
 ```
 
 ## Manual Synology fallback

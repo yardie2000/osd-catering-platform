@@ -251,14 +251,18 @@ export type Recipe = {
   scalable:            boolean
   production_loss_pct: number | null   // V5.2 per-recipe override; null -> global default
   yield_pct:           number | null   // V5.2 per-recipe override; null -> global default
+  needs_review:        boolean
+  recipe_status:       'active' | 'incomplete' | 'archived'
   created_at:          string
   updated_at:          string
 }
 
-export type RecipeInsert = Omit<Recipe, 'id' | 'created_at' | 'updated_at' | 'base_portions' | 'production_loss_pct' | 'yield_pct'> & {
+export type RecipeInsert = Omit<Recipe, 'id' | 'created_at' | 'updated_at' | 'base_portions' | 'production_loss_pct' | 'yield_pct' | 'needs_review' | 'recipe_status'> & {
   base_portions?:       number | null
   production_loss_pct?: number | null
   yield_pct?:           number | null
+  needs_review?:        boolean
+  recipe_status?:       'active' | 'incomplete' | 'archived'
 }
 export type RecipeUpdate = Partial<RecipeInsert>
 
@@ -317,6 +321,7 @@ export type Position = {
   dietary:       string | null
   allergens:     string[]
   default_price: number | null
+  is_add_on:     boolean
   notes:         string | null
   created_at:    string
   updated_at:    string
@@ -328,6 +333,7 @@ export type PositionInsert = {
   dietary?:       string | null
   allergens?:     string[]
   default_price?: number | null
+  is_add_on?:     boolean
   notes?:         string | null
 }
 export type PositionUpdate = Partial<PositionInsert>
@@ -338,6 +344,7 @@ export type MenuPosition = {
   position_id:    string
   sort_order:     number
   price_override: number | null
+  is_add_on:      boolean
   created_at:     string
 }
 export type MenuPositionInsert = {
@@ -345,6 +352,7 @@ export type MenuPositionInsert = {
   position_id:    string
   sort_order?:    number
   price_override?: number | null
+  is_add_on?:     boolean
 }
 export type MenuPositionUpdate = Partial<Omit<MenuPositionInsert, 'menu_id' | 'position_id'>>
 
@@ -505,9 +513,7 @@ export type ImportedEventOrder = {
   matched_menu_name:      string | null
   menu_confidence:        number
   menu_match_strategy:    string
-  variant_label:          string | null
-  variant_item_count:     number | null
-  variant_confidence:     number
+  expected_item_count:    number | null
   status:                 ImportedReviewStatus
   needs_review:           boolean
   warnings:               string[]
@@ -532,9 +538,7 @@ export type ImportedEventOrderInsert = {
   matched_menu_name?:     string | null
   menu_confidence?:       number
   menu_match_strategy?:   string
-  variant_label?:         string | null
-  variant_item_count?:    number | null
-  variant_confidence?:    number
+  expected_item_count?:   number | null
   status?:                ImportedReviewStatus
   needs_review?:          boolean
   warnings?:              string[]

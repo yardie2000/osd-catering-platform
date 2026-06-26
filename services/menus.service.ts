@@ -67,8 +67,8 @@ export const menusService = {
     const { data, error } = await supabase
       .from('menu_positions')
       .select(`
-        id, menu_id, position_id, sort_order, price_override, created_at,
-        position:positions(id, position_code, name, description, dietary, allergens, default_price, notes, created_at, updated_at)
+        id, menu_id, position_id, sort_order, price_override, is_add_on, created_at,
+        position:positions(id, position_code, name, description, dietary, allergens, default_price, is_add_on, notes, created_at, updated_at)
       `)
       .eq('menu_id', menuId)
       .order('sort_order', { ascending: true })

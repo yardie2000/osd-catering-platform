@@ -52,9 +52,7 @@ CREATE TABLE IF NOT EXISTS public.imported_event_orders (
   matched_menu_name      TEXT,
   menu_confidence        NUMERIC(5,4) NOT NULL DEFAULT 0,
   menu_match_strategy    TEXT        NOT NULL DEFAULT 'no-match',
-  variant_label          TEXT,
-  variant_item_count     INTEGER,
-  variant_confidence     NUMERIC(5,4) NOT NULL DEFAULT 0,
+  expected_item_count    INTEGER,
   status                 TEXT        NOT NULL DEFAULT 'needs_review'
                                       CHECK (status IN ('matched','needs_review','reviewed','calculated','failed')),
   needs_review           BOOLEAN     NOT NULL DEFAULT true,

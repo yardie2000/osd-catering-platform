@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Plus, Pencil, Trash2, Search, Layers, GitMerge } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -78,6 +78,14 @@ export default function PositionsPage() {
   const [componentsId, setComponentsId] = useState<string | null>(null)
   const { data: componentsPosition } = usePosition(componentsId ?? '')
   const [mergeSource, setMergeSource] = useState<PositionListRow | null>(null)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const component = params.get('component')
+    const initialSearch = params.get('search')
+    if (initialSearch) setSearch(initialSearch)
+    if (component) setComponentsId(component)
+  }, [])
 
   function openCreate() { setForm(EMPTY); setDialog('create') }
   function openEdit(p: PositionListRow) {

@@ -52,9 +52,7 @@ type SavedOrder = {
   matched_menu_name: string | null
   menu_confidence: number
   menu_match_strategy: string
-  variant_label: string | null
-  variant_item_count: number | null
-  variant_confidence: number
+  expected_item_count: number | null
   status: ImportedReviewStatus
   needs_review: boolean
   warnings: string[]
@@ -82,11 +80,13 @@ type RawCatalogPosition = {
   id: string
   position_code: string | null
   name: string
+  is_add_on?: boolean | null
   position_components?: RawCatalogComponent[] | null
 }
 
 type RawCatalogMenuPosition = {
   sort_order: number | null
+  is_add_on?: boolean | null
   position: RawCatalogPosition | null
 }
 
@@ -112,10 +112,12 @@ async function loadCatalog(client: Client): Promise<ImportCatalogMenu[]> {
       category,
       menu_positions(
         sort_order,
+        is_add_on,
         position:positions(
           id,
           position_code,
           name,
+          is_add_on,
           position_components(
             recipe_id,
             recipe:recipes(id, recipe_code, name)
@@ -135,12 +137,16 @@ async function loadCatalog(client: Client): Promise<ImportCatalogMenu[]> {
     category: menu.category,
     positions: (menu.menu_positions ?? [])
       .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-      .map((mp) => mp.position)
-      .filter((position): position is RawCatalogPosition => Boolean(position))
+      .filter((mp): mp is RawCatalogMenuPosition & { position: RawCatalogPosition } => Boolean(mp.position))
+      .map((mp) => ({
+        ...mp.position,
+        is_add_on: Boolean(mp.position.is_add_on || mp.is_add_on),
+      }))
       .map((position) => ({
         id: position.id,
         position_code: position.position_code,
         name: position.name,
+        isAddOn: Boolean(position.is_add_on),
         recipeIds: (position.position_components ?? [])
           .map((component) => component.recipe_id)
           .filter((recipeId): recipeId is string => Boolean(recipeId)),
@@ -244,9 +250,7 @@ async function persistDraft(
           matched_menu_name: order.menuMatch.menu?.menu_name ?? null,
           menu_confidence: order.menuMatch.confidence,
           menu_match_strategy: order.menuMatch.strategy,
-          variant_label: order.variant.label,
-          variant_item_count: order.variant.itemCount,
-          variant_confidence: order.variant.confidence,
+          expected_item_count: order.expectedItemCount.itemCount,
           status: order.status,
           needs_review: order.status === 'needs_review',
           warnings: order.warnings,
@@ -404,8 +408,7 @@ type ReviewPatch = {
     imported_event_id: string
     event_pax: number
     matched_menu_id: string | null
-    variant_label: string | null
-    variant_item_count: number | null
+    expected_item_count: number | null
     selected_items: Array<{
       raw_position_text: string
       matched_menu_item_id: string | null
@@ -428,6 +431,9 @@ export async function PATCH(req: NextRequest) {
     const positionById = new Map(catalog.flatMap((menu) => menu.positions.map((position) => [position.id, position])))
 
     for (const order of body.orders) {
+      if (!Number.isFinite(Number(order.event_pax)) || Number(order.event_pax) <= 0) {
+        return NextResponse.json({ error: 'Pax/Anzahl muss groesser als 0 sein' }, { status: 400 })
+      }
       const menu = order.matched_menu_id ? menuById.get(order.matched_menu_id) : null
       const { data: existingItems, error: existingItemsError } = await client
         .from('imported_event_selected_items')
@@ -453,8 +459,8 @@ export async function PATCH(req: NextRequest) {
 
       const warnings: string[] = []
       if (!menu) warnings.push('Menu muss geprueft werden')
-      if (order.variant_item_count != null && selected.length !== order.variant_item_count) {
-        warnings.push(`Variante ${order.variant_label ?? ''}, aber ${selected.length} Positionen gespeichert`)
+      if (order.expected_item_count != null && selected.length !== order.expected_item_count) {
+        warnings.push(`${order.expected_item_count} Positionen erwartet, aber ${selected.length} Positionen gespeichert`)
       }
       if (selected.some((item) => item.needs_review || !item.matched_menu_item_id)) {
         warnings.push('Mindestens eine Position muss geprueft werden')
@@ -469,9 +475,7 @@ export async function PATCH(req: NextRequest) {
           matched_menu_name: menu?.menu_name ?? null,
           menu_confidence: menu ? 1 : 0,
           menu_match_strategy: 'review',
-          variant_label: order.variant_label,
-          variant_item_count: order.variant_item_count,
-          variant_confidence: order.variant_label ? 1 : 0,
+          expected_item_count: order.expected_item_count,
           status,
           needs_review: status === 'needs_review',
           warnings,

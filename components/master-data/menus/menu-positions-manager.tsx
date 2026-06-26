@@ -120,10 +120,18 @@ export function MenuPositionsManager({ menuId }: { menuId: string }) {
                   <TableRow key={r.id}>
                     <TableCell className="text-muted-foreground text-sm align-top">{i + 1}</TableCell>
                     <TableCell className="align-top">
-                      <p className="font-medium">{pos?.name ?? '—'}</p>
-                      <Link href="/master-data/positions" className="text-xs text-primary hover:underline inline-flex items-center gap-1">
-                        <Layers className="h-3 w-3" /> Komponenten im Katalog
-                      </Link>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-medium">{pos?.name ?? '—'}</p>
+                        {r.is_add_on && <Badge variant="secondary" className="text-[10px]">Add-on</Badge>}
+                      </div>
+                      {pos && (
+                        <Link
+                          href={`/master-data/positions?component=${encodeURIComponent(pos.id)}`}
+                          className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                        >
+                          <Layers className="h-3 w-3" /> Position und Komponenten öffnen
+                        </Link>
+                      )}
                     </TableCell>
                     <TableCell className="align-top text-muted-foreground">{pos?.dietary ?? '—'}</TableCell>
                     <TableCell className="align-top">

@@ -14,6 +14,10 @@ export type ProduktbedarfRow = {
   langbezeichnung: string
   /** Total demand quantity across all events (0 when MouseClick reports none). */
   menge: number
+  /** CSV column used for menge according to the import fallback rule. */
+  mengenQuelle: 'anzahl' | 'packsanzahl' | 'menge' | 'quantity' | 'pax' | null
+  /** True when no import quantity column had a usable positive value. */
+  mengeFehlt: boolean
   /** Unit of `menge`: usually "pax", sometimes "Stück"/"Stk", occasionally empty. */
   einheit: string
   /** Raw Aufträge text, newlines normalised to "; ". */
@@ -109,11 +113,11 @@ function detectDelimiter(headerLine: string): string {
   return commas > semis ? ',' : ';'
 }
 
-function toNumber(value: string): number {
+function toNumberOrNull(value: string): number | null {
   // MouseClick reports plain integers; tolerate thousands dots / decimal commas.
   const cleaned = value.replace(/[^\d,.-]/g, '').replace(/\.(?=\d{3}\b)/g, '').replace(',', '.')
   const n = Number.parseFloat(cleaned)
-  return Number.isFinite(n) ? n : 0
+  return Number.isFinite(n) ? n : null
 }
 
 function headerIndex(header: string[], ...names: string[]): number {
@@ -140,7 +144,11 @@ export function parseProduktbedarfCsv(text: string): ProduktbedarfRow[] {
   const header = grid[0]
   const iProdukt = headerIndex(header, 'Produkt')
   const iLang = headerIndex(header, 'Langbezeichnung', 'Bezeichnung')
-  const iMenge = headerIndex(header, 'Menge', 'Anzahl')
+  const iAnzahl = headerIndex(header, 'Anzahl')
+  const iPacksanzahl = headerIndex(header, 'Packsanzahl', 'Packanzahl', 'Packs', 'Pack Quantity')
+  const iMenge = headerIndex(header, 'Menge')
+  const iQuantity = headerIndex(header, 'Quantity', 'Qty')
+  const iPax = headerIndex(header, 'Pax', 'Personen')
   const iEinheit = headerIndex(header, 'Einheit')
   const iAuftraege = headerIndex(header, 'Aufträge', 'Auftraege')
   const iKlass = headerIndex(header, 'Klassifizierung', 'Klasse')
@@ -156,10 +164,26 @@ export function parseProduktbedarfCsv(text: string): ProduktbedarfRow[] {
     const auftragCount = (auftraegeRaw.match(/\([^)]*\)\s*$/gm) ?? []).length
     const klassifizierung = iKlass >= 0 ? clean(cells[iKlass] ?? '') : ''
 
+    const quantityCandidates = [
+      { source: 'anzahl' as const, index: iAnzahl },
+      { source: 'packsanzahl' as const, index: iPacksanzahl },
+      { source: 'menge' as const, index: iMenge },
+      { source: 'quantity' as const, index: iQuantity },
+      { source: 'pax' as const, index: iPax },
+    ]
+    const quantity = quantityCandidates
+      .map((candidate) => ({
+        source: candidate.source,
+        value: candidate.index >= 0 ? toNumberOrNull(cells[candidate.index] ?? '') : null,
+      }))
+      .find((candidate) => candidate.value != null && candidate.value > 0) ?? null
+
     rows.push({
       produkt,
       langbezeichnung: iLang >= 0 ? clean(cells[iLang] ?? '') : '',
-      menge: iMenge >= 0 ? toNumber(cells[iMenge] ?? '') : 0,
+      menge: quantity?.value ?? 0,
+      mengenQuelle: quantity?.source ?? null,
+      mengeFehlt: !quantity,
       einheit: iEinheit >= 0 ? clean(cells[iEinheit] ?? '') : '',
       auftraege: clean(auftraegeRaw),
       auftragCount,

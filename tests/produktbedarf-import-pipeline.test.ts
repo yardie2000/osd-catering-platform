@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { parseProduktbedarfCsv } from '@/lib/produktbedarf/parse'
 import {
   buildProduktbedarfImportDraft,
-  detectVariant,
+  detectExpectedItemCount,
   matchMenu,
   parseAuftraege,
   reconstructSelectedItems,
@@ -110,7 +110,7 @@ describe('parseAuftraege', () => {
   })
 })
 
-describe('menu and variant matching', () => {
+describe('menu matching and expected position counts', () => {
   test('matches MouseClick product to sellable menu, not recipes', () => {
     const result = matchMenu('Fingerfood 2025 6 Teile', CATALOG)
     assert.equal(result.menu?.id, 'm-fingerfood')
@@ -126,10 +126,9 @@ describe('menu and variant matching', () => {
     assert.equal(result.needsReview, false)
   })
 
-  test('detects Teile variants', () => {
-    const variant = detectVariant('Fingerfood 2025 6 Teile')
-    assert.equal(variant.label, '6 Teile')
-    assert.equal(variant.itemCount, 6)
+  test('detects expected item counts from Teile text', () => {
+    const expected = detectExpectedItemCount('Fingerfood 2025 6 Teile')
+    assert.equal(expected.itemCount, 6)
   })
 })
 
@@ -172,7 +171,7 @@ describe('full import draft', () => {
     assert.match(draft.events[0].orders[0].originalImportText, /Auftraege: Event A/)
   })
 
-  test('variant count mismatch becomes needs_review', () => {
+  test('expected item count mismatch becomes needs_review', () => {
     const rows = parseProduktbedarfCsv(CSV)
     const draft = buildProduktbedarfImportDraft(rows, CATALOG)
     for (const event of draft.events) {
@@ -186,5 +185,32 @@ describe('full import draft', () => {
     assert.equal(mismatchDraft.events[0].orders[0].selectedItems.length, 6)
     assert.equal(mismatchDraft.events[0].orders[0].selectedItems.at(-1)?.matchedMenuItemId, null)
     assert.match(mismatchDraft.events[0].warnings.join(' '), /Mindestens eine Position/)
+  })
+
+  test('quantity fallback uses Packsanzahl when Anzahl is absent', () => {
+    const csv = [
+      '"Produkt";"Langbezeichnung";"Packsanzahl";"Einheit";"Aufträge";"Klassifizierung"',
+      '"Fingerfood 2025 3 Teile";"Fingerfood 2025 3 Teile Caesar´s Salad";"60";"pax";"";"Speisen"',
+      '',
+    ].join('\n')
+    const rows = parseProduktbedarfCsv(csv)
+    assert.equal(rows[0].menge, 60)
+    assert.equal(rows[0].mengenQuelle, 'packsanzahl')
+    const draft = buildProduktbedarfImportDraft(rows, CATALOG)
+    assert.equal(draft.events[0].pax, 60)
+    assert.equal(draft.events[0].orders[0].eventPax, 60)
+  })
+
+  test('missing quantity is visible as review error', () => {
+    const csv = [
+      '"Produkt";"Langbezeichnung";"Einheit";"Aufträge";"Klassifizierung"',
+      '"Fingerfood 2025 3 Teile";"Fingerfood 2025 3 Teile Caesar´s Salad";"pax";"";"Speisen"',
+      '',
+    ].join('\n')
+    const rows = parseProduktbedarfCsv(csv)
+    assert.equal(rows[0].mengeFehlt, true)
+    const draft = buildProduktbedarfImportDraft(rows, CATALOG)
+    assert.equal(draft.events[0].status, 'needs_review')
+    assert.match(draft.events[0].warnings.join(' '), /Keine Anzahl/)
   })
 })

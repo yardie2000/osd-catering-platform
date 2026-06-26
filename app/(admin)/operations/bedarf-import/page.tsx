@@ -59,9 +59,7 @@ type ReviewOrder = {
   matched_menu_name: string | null
   menu_confidence: number
   menu_match_strategy: string
-  variant_label: string | null
-  variant_item_count: number | null
-  variant_confidence: number
+  expected_item_count: number | null
   status: string
   needs_review: boolean
   warnings: string[]
@@ -95,6 +93,17 @@ function countNeedsReview(events: ReviewEvent[]) {
     }
   }
   return { orders, items }
+}
+
+function displayOriginalImportText(order: ReviewOrder): string {
+  return order.original_import_text || [
+    `Produkt: ${order.product_name}`,
+    `Langbezeichnung: ${order.long_description}`,
+    `Menge: ${order.total_quantity}`,
+    `Einheit: ${order.unit}`,
+    `Auftraege: ${order.raw_orders}`,
+    `Klassifizierung: ${order.category}`,
+  ].join('\n')
 }
 
 export default function BedarfImportPage() {
@@ -286,6 +295,14 @@ export default function BedarfImportPage() {
 
   async function saveReview() {
     if (!jobId) return
+    const invalidPax = events
+      .flatMap((event) => event.orders.map((order) => ({ eventName: event.event_name, order })))
+      .find(({ order }) => !Number.isFinite(Number(order.event_pax)) || Number(order.event_pax) <= 0)
+    if (invalidPax) {
+      toast.error(`Pax/Anzahl muss groesser als 0 sein: ${invalidPax.eventName}`)
+      return
+    }
+
     setSaving(true)
     try {
       const orders = events.flatMap((event) =>
@@ -294,8 +311,7 @@ export default function BedarfImportPage() {
           imported_event_id: order.imported_event_id,
           event_pax: Number(order.event_pax) || 0,
           matched_menu_id: order.matched_menu_id,
-          variant_label: order.variant_label,
-          variant_item_count: order.variant_item_count,
+          expected_item_count: order.expected_item_count,
           selected_items: order.selected_items.map((item, index) => ({
             raw_position_text: item.raw_position_text,
             matched_menu_item_id: item.matched_menu_item_id,
@@ -342,7 +358,7 @@ export default function BedarfImportPage() {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Produktbedarf importieren"
-        description="MouseClick-CSV in Events, verkaufte Menüs, Varianten und tatsächlich gewählte Positionen zerlegen."
+        description="MouseClick-CSV in Events, verkaufte Menüs und tatsächlich gewählte Positionen zerlegen."
       />
 
       <div className="p-8 space-y-6">
@@ -442,7 +458,7 @@ export default function BedarfImportPage() {
                       const menu = order.matched_menu_id ? menuById.get(order.matched_menu_id) : null
                       return (
                         <div key={order.id} className="space-y-3 border-t first:border-t-0 pt-5 first:pt-0">
-                          <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr_10rem_8rem]">
+                          <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr_10rem]">
                             <div>
                               <p className="text-xs text-muted-foreground">Produkt</p>
                               <p className="text-sm font-medium">{order.product_name}</p>
@@ -467,19 +483,16 @@ export default function BedarfImportPage() {
                               </Select>
                             </div>
                             <div>
-                              <p className="text-xs text-muted-foreground mb-1">Variante</p>
-                              <Input
-                                value={order.variant_label ?? ''}
-                                onChange={(event) => setOrderField(order.id, { variant_label: event.target.value || null })}
-                              />
-                            </div>
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-1">Pax</p>
+                              <p className="text-xs text-muted-foreground mb-1">Pax / Anzahl *</p>
                               <Input
                                 type="number"
-                                min={0}
+                                min={1}
+                                required
                                 value={order.event_pax}
-                                onChange={(event) => setOrderField(order.id, { event_pax: Number(event.target.value) || 0 })}
+                                onChange={(event) => {
+                                  const value = event.target.value
+                                  setOrderField(order.id, { event_pax: value === '' ? 0 : Number(value) })
+                                }}
                               />
                             </div>
                           </div>
@@ -488,30 +501,26 @@ export default function BedarfImportPage() {
                             <p className="text-xs text-muted-foreground mb-1">Original-Rohtext</p>
                             <Textarea
                               readOnly
-                              value={order.original_import_text || [
-                                `Produkt: ${order.product_name}`,
-                                `Langbezeichnung: ${order.long_description}`,
-                                `Menge: ${order.total_quantity}`,
-                                `Einheit: ${order.unit}`,
-                                `Auftraege: ${order.raw_orders}`,
-                                `Klassifizierung: ${order.category}`,
-                              ].join('\n')}
+                              value={displayOriginalImportText(order)}
                               className="min-h-[6rem] resize-y bg-muted/40 font-mono text-xs"
                             />
                           </div>
 
                           <div className="flex flex-wrap items-center gap-2">
-                            <Input
-                              type="number"
-                              min={0}
-                              className="w-32"
-                              value={order.variant_item_count ?? ''}
-                              placeholder="Anzahl"
-                              onChange={(event) => {
-                                const value = Number(event.target.value)
-                                setOrderField(order.id, { variant_item_count: Number.isFinite(value) && value > 0 ? value : null })
-                              }}
-                            />
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">Soll-Positionen</span>
+                              <Input
+                                type="number"
+                                min={0}
+                                className="w-24"
+                                value={order.expected_item_count ?? ''}
+                                placeholder="-"
+                                onChange={(event) => {
+                                  const value = Number(event.target.value)
+                                  setOrderField(order.id, { expected_item_count: Number.isFinite(value) && value > 0 ? value : null })
+                                }}
+                              />
+                            </div>
                             {order.warnings.map((warning) => (
                               <Badge key={warning} variant="warning" className="text-[10px]">
                                 {warning}

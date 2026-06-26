@@ -19,6 +19,7 @@ export type ImportCatalogPosition = {
   id: string
   position_code: string | null
   name: string
+  isAddOn?: boolean
   recipeIds: string[]
   recipes?: ImportCatalogRecipe[]
 }
@@ -31,8 +32,7 @@ export type ImportCatalogMenu = {
   positions: ImportCatalogPosition[]
 }
 
-export type MenuVariantMatch = {
-  label: string | null
+export type ExpectedItemCountMatch = {
   itemCount: number | null
   confidence: number
 }
@@ -68,7 +68,7 @@ export type ImportedOrderDraft = {
   eventPax: number
   rawAuftragText: string
   menuMatch: MenuMatch
-  variant: MenuVariantMatch
+  expectedItemCount: ExpectedItemCountMatch
   selectedItems: SelectedPositionMatch[]
   status: 'matched' | 'needs_review'
   warnings: string[]
@@ -240,30 +240,14 @@ export function parseAuftraege(raw: string, fallbackPax: number, fallbackUnit: s
   return orders
 }
 
-export function detectVariant(productText: string): MenuVariantMatch {
+export function detectExpectedItemCount(productText: string): ExpectedItemCountMatch {
   const text = decodeEntities(productText)
   const teile = text.match(/(\d+)\s*teile?/i) ?? text.match(/(\d+)\s*teile?/i)
   if (teile) {
     const count = Number.parseInt(teile[1], 10)
-    return { label: `${count} Teile`, itemCount: count, confidence: 1 }
+    return { itemCount: count, confidence: 1 }
   }
-
-  const normalized = normalizeText(text)
-  const variants = [
-    'grab and go',
-    'lunch',
-    'bbq',
-    'family style',
-    'buffet',
-    'sharing plates',
-    'flying',
-  ]
-  for (const variant of variants) {
-    if (normalized.includes(normalizeText(variant))) {
-      return { label: variant.replace(/\b\w/g, (c) => c.toUpperCase()), itemCount: null, confidence: 0.9 }
-    }
-  }
-  return { label: null, itemCount: null, confidence: 0 }
+  return { itemCount: null, confidence: 0 }
 }
 
 function productWithoutVariant(value: string): string {
@@ -280,6 +264,7 @@ function buildOriginalImportText(row: ProduktbedarfRow): string {
     `Produkt: ${row.produkt}`,
     `Langbezeichnung: ${row.langbezeichnung}`,
     `Menge: ${row.menge}`,
+    `Mengenquelle: ${row.mengenQuelle ?? 'nicht gefunden'}`,
     `Einheit: ${row.einheit}`,
     `Auftraege: ${row.auftraege}`,
     `Klassifizierung: ${row.klassifizierung}`,
@@ -416,6 +401,18 @@ function aliasesForPosition(position: ImportCatalogPosition): string[] {
 
 function matchPositionInText(langbezeichnung: string, position: ImportCatalogPosition): SelectedPositionMatch | null {
   const sourceNorm = normalizeText(langbezeichnung)
+  const positionNorm = normalizeText(position.name)
+
+  if (positionNorm.includes('mit haehnchen') && !/\b(mit|m)\s*haehnchen\b/.test(sourceNorm)) {
+    return null
+  }
+  if (positionNorm.includes('ohne haehnchen') && !/\b(ohne|o)\s*haehnchen\b/.test(sourceNorm)) {
+    return null
+  }
+  if (positionNorm.includes('ohne haehnchen') && /\b(mit|m)\s*haehnchen\b/.test(sourceNorm)) {
+    return null
+  }
+
   let best: { alias: string; score: number } | null = null
 
   for (const alias of aliasesForPosition(position)) {
@@ -449,6 +446,29 @@ function matchPositionInText(langbezeichnung: string, position: ImportCatalogPos
   }
 }
 
+function uniqPositions(positions: ImportCatalogPosition[]): ImportCatalogPosition[] {
+  const seen = new Set<string>()
+  const unique: ImportCatalogPosition[] = []
+  for (const position of positions) {
+    if (seen.has(position.id)) continue
+    seen.add(position.id)
+    unique.push(position)
+  }
+  return unique
+}
+
+function suppressGenericCaesarDuplicates(matches: SelectedPositionMatch[]): SelectedPositionMatch[] {
+  const hasSpecificCaesar = matches.some((item) => {
+    const name = normalizeText(item.matchedPositionName ?? '')
+    return name.includes('caesar') && (name.includes('mit haehnchen') || name.includes('ohne haehnchen'))
+  })
+  if (!hasSpecificCaesar) return matches
+  return matches.filter((item) => {
+    const name = normalizeText(item.matchedPositionName ?? '')
+    return !(name.includes('caesar') && name.includes('m o haehnchen'))
+  })
+}
+
 export function reconstructSelectedItems(langbezeichnung: string, menu: ImportCatalogMenu | null): SelectedPositionMatch[] {
   if (!menu) {
     return [{
@@ -462,7 +482,29 @@ export function reconstructSelectedItems(langbezeichnung: string, menu: ImportCa
     }]
   }
 
-  const matches = menu.positions
+  const matches = suppressGenericCaesarDuplicates(menu.positions
+    .map((position) => matchPositionInText(langbezeichnung, position))
+    .filter((match): match is SelectedPositionMatch => Boolean(match))
+    .sort((a, b) => b.confidence - a.confidence))
+
+  if (matches.length === 0) {
+    return [{
+      rawPositionText: langbezeichnung,
+      originalText: langbezeichnung,
+      matchedMenuItemId: null,
+      matchedRecipeId: null,
+      matchedPositionName: null,
+      confidence: 0,
+      needsReview: true,
+    }]
+  }
+
+  return matches
+}
+
+export function reconstructAddOnItems(langbezeichnung: string, catalog: ImportCatalogMenu[]): SelectedPositionMatch[] {
+  const addOnPositions = uniqPositions(catalog.flatMap((menu) => menu.positions.filter((position) => position.isAddOn)))
+  const matches = addOnPositions
     .map((position) => matchPositionInText(langbezeichnung, position))
     .filter((match): match is SelectedPositionMatch => Boolean(match))
     .sort((a, b) => b.confidence - a.confidence)
@@ -482,14 +524,21 @@ export function reconstructSelectedItems(langbezeichnung: string, menu: ImportCa
   return matches
 }
 
+function reconstructRowItems(row: ProduktbedarfRow, menuMatch: MenuMatch, catalog: ImportCatalogMenu[]): SelectedPositionMatch[] {
+  if (row.istOptional && !menuMatch.menu) {
+    return reconstructAddOnItems(row.langbezeichnung || row.produkt, catalog)
+  }
+  return reconstructSelectedItems(row.langbezeichnung, menuMatch.menu)
+}
+
 function fillMissingVariantItems(
   selectedItems: SelectedPositionMatch[],
-  variant: MenuVariantMatch,
+  expectedItemCount: ExpectedItemCountMatch,
   langbezeichnung: string,
 ): SelectedPositionMatch[] {
-  if (variant.itemCount == null || selectedItems.length >= variant.itemCount) return selectedItems
+  if (expectedItemCount.itemCount == null || selectedItems.length >= expectedItemCount.itemCount) return selectedItems
 
-  const missing = variant.itemCount - selectedItems.length
+  const missing = expectedItemCount.itemCount - selectedItems.length
   return [
     ...selectedItems,
     ...Array.from({ length: missing }, (_, index) => ({
@@ -504,18 +553,18 @@ function fillMissingVariantItems(
   ]
 }
 
-function validateOrder(row: ProduktbedarfRow, order: ProduktbedarfAuftrag, menuMatch: MenuMatch, variant: MenuVariantMatch, selectedItems: SelectedPositionMatch[]): string[] {
+function validateOrder(row: ProduktbedarfRow, order: ProduktbedarfAuftrag, menuMatch: MenuMatch, expectedItemCount: ExpectedItemCountMatch, selectedItems: SelectedPositionMatch[]): string[] {
   const warnings: string[] = []
   if (!/pax/i.test(row.einheit)) warnings.push(`Einheit ist nicht pax: ${row.einheit || 'leer'}`)
+  if (row.mengeFehlt) warnings.push('Keine Anzahl/Packsanzahl/Menge/Quantity/Pax in CSV gefunden')
   if (!menuMatch.menu) warnings.push('Menu muss geprueft werden')
-  if (!variant.label) warnings.push('Variante konnte nicht erkannt werden')
   if (selectedItems.some((item) => item.needsReview)) warnings.push('Mindestens eine Position muss geprueft werden')
-  if (variant.itemCount != null) {
-    if (selectedItems.length < variant.itemCount) {
-      warnings.push(`Variante ${variant.label}, aber nur ${selectedItems.length} Positionen erkannt`)
+  if (expectedItemCount.itemCount != null) {
+    if (selectedItems.length < expectedItemCount.itemCount) {
+      warnings.push(`${expectedItemCount.itemCount} Positionen erwartet, aber nur ${selectedItems.length} erkannt`)
     }
-    if (selectedItems.length > variant.itemCount) {
-      warnings.push(`Variante ${variant.label}, aber ${selectedItems.length} Positionen erkannt`)
+    if (selectedItems.length > expectedItemCount.itemCount) {
+      warnings.push(`${expectedItemCount.itemCount} Positionen erwartet, aber ${selectedItems.length} erkannt`)
     }
   }
   if (order.pax <= 0) warnings.push('Event-Pax ist 0 oder ungueltig')
@@ -538,10 +587,10 @@ export function buildProduktbedarfImportDraft(rows: ProduktbedarfRow[], catalog:
     const productText = `${row.produkt} ${row.langbezeichnung}`.trim()
     const originalImportText = buildOriginalImportText(row)
     const menuMatch = matchMenu(`${productText}\n${row.auftraege}\n${row.klassifizierung}`, catalog)
-    const variant = detectVariant(productText)
+    const expectedItemCount = detectExpectedItemCount(productText)
     const selectedItems = fillMissingVariantItems(
-      reconstructSelectedItems(row.langbezeichnung, menuMatch.menu),
-      variant,
+      reconstructRowItems(row, menuMatch, catalog),
+      expectedItemCount,
       row.langbezeichnung,
     )
 
@@ -550,7 +599,7 @@ export function buildProduktbedarfImportDraft(rows: ProduktbedarfRow[], catalog:
       const warnings = [
         ...rowWarnings,
         ...menuMatch.warnings,
-        ...validateOrder(row, auftrag, menuMatch, variant, selectedItems),
+        ...validateOrder(row, auftrag, menuMatch, expectedItemCount, selectedItems),
       ]
       const status: ImportedOrderDraft['status'] = warnings.length > 0 ? 'needs_review' : 'matched'
       const orderDraft: ImportedOrderDraft = {
@@ -566,7 +615,7 @@ export function buildProduktbedarfImportDraft(rows: ProduktbedarfRow[], catalog:
         eventPax: auftrag.pax,
         rawAuftragText: auftrag.rawText,
         menuMatch,
-        variant,
+        expectedItemCount,
         selectedItems: selectedItems.map((item) => ({ ...item })),
         status,
         warnings,

@@ -1,7 +1,7 @@
-# OSD Catering - V5.2 Status & Release Notes
+# OSD Catering - V5.2.1 Status & Release Notes
 
 Stand: 2026-06-26
-App-Version: 5.2.0
+App-Version: 5.2.1
 Branch: main
 Deployment: GitHub Actions -> GHCR -> Synology Watchtower
 
@@ -22,7 +22,7 @@ CSV
   -> Parser
   -> Events
   -> verkauftes Menue
-  -> Menuevariante
+  -> erwartete Positionsanzahl aus Originaltext
   -> tatsaechlich gewaehlte Kundenpositionen
   -> Review
   -> Rezepte
@@ -39,21 +39,23 @@ CSV
 - Pure Import-Pipeline in `lib/produktbedarf/importPipeline.ts`.
 - MouseClick-Auftrags-Splitting: eine CSV-Zeile kann mehrere Events erzeugen.
 - Menue-Matching gegen `menus`, nicht gegen Rezepte oder Zutaten.
-- Varianten-Erkennung fuer Teile-Varianten und Betriebsformen wie Lunch, Grab and Go, BBQ, Family Style und Buffet.
+- Erwartete Positionsanzahl aus Originaltexten wie "3 Teile", "6 Teile" und "9 Teile".
+- V5.2.1 entfernt das fachlich falsche Importfeld "Variante"; die fachliche Ausfuehrung kommt ausschliesslich aus Originaltext und zugeordneter Position.
+- Add-on-Markierung fuer Menuepositionen und PDF-basierte Rezept-Stubs fuer unvollstaendige Produktionslogik.
 - Positions-Rekonstruktion aus der Langbezeichnung gegen `positions` des gematchten Menues.
 - Explizite Review-Items fuer nicht erkannte oder fehlende Positionen.
 - API-Route `/api/product-demand-import` fuer Import, Laden und Speichern der Review-Daten.
 - Neue Review-Oberflaeche unter `/operations/bedarf-import`.
 - Review-Funktionen:
   - Menue aendern
-  - Variante aendern
+  - erwartete Positionsanzahl pruefen
   - Pax korrigieren
   - Position hinzufuegen
   - Position entfernen
   - Position austauschen
   - neue Position anlegen und dem Menue zuordnen
   - Zuordnung speichern
-- Tests fuer Parser, Event-Splitting, Menue-/Variantenmatching, Positionsauswahl und Review-Status.
+- Tests fuer Parser, Event-Splitting, Menue-Matching, erwartete Positionsanzahl, Mengen-Fallbacks, Positionsauswahl und Review-Status.
 
 ## 3. Datenmodell-Hierarchie
 
@@ -78,8 +80,9 @@ Wichtig: `imported_event_selected_items` enthaelt ausschliesslich tatsaechlich e
 Neu fuer V5.2:
 
 - `supabase/migrations/20260626000001_imported_event_orders.sql`
+- `supabase/migrations/20260626000003_pdf_catalog_addons_recipe_stubs.sql`
 
-Die Migration ist additiv und veraendert keine Masterdaten.
+Die Migrationen sind additiv. V5.2.1 ergaenzt Add-on-Flags, Rezept-Reviewstatus, PDF-Rezept-Stubs und entfernt die persistierten `variant_*`-Importfelder zugunsten von `expected_item_count`.
 
 Vor produktiver Nutzung muss diese Migration in der Live-Supabase-Datenbank ausgefuehrt sein. Ohne diese Tabellen kann die Review-API nicht persistieren.
 
@@ -87,7 +90,7 @@ Vor produktiver Nutzung muss diese Migration in der Live-Supabase-Datenbank ausg
 
 Lokal erfolgreich:
 
-- `npm test` -> 72 Tests gruen
+- `npm test` -> 75 Tests gruen
 - `npm run type-check` -> gruen
 - Smoke-Test `/operations/bedarf-import` -> HTTP 200
 - Smoke-Test `/api/product-demand-import` ohne `jobId` -> erwarteter HTTP 400
@@ -99,7 +102,7 @@ Lokal erfolgreich:
 Beispiel Fingerfood 6 Teile:
 
 - Menue: `FINGERFOOD ABENDS`
-- Variante: `6 Teile`
+- Erwartete Positionsanzahl: `6`
 - erkannte Positionen: 5
 - fehlende Position: explizites Review-Item
 - Status: `needs_review`
@@ -124,7 +127,7 @@ Synology Compose:
 
 ## 7. Offene operative Schritte
 
-- V5.2-Migration in Live-Supabase ausfuehren, falls noch nicht angewendet.
+- V5.2.1-Migration in Live-Supabase ausfuehren, falls noch nicht angewendet. Stand 2026-06-26: `20260626000003_pdf_catalog_addons_recipe_stubs.sql` wurde live ausgefuehrt und verifiziert.
 - GitHub Actions Lauf nach Push pruefen.
 - Synology Watchtower-Logs pruefen oder Container manuell neu ziehen, falls das Update nicht innerhalb von 5 Minuten kommt.
 - Danach Import im Browser unter `/operations/bedarf-import` mit der echten CSV testen und Review speichern.

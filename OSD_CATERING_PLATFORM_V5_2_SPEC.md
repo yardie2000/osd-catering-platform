@@ -11,7 +11,7 @@ OSD Catering Platform V5.2 ist eine ruhige, dunkle und touchfreundliche Kitchen-
 Die Plattform beantwortet im Tagesbetrieb vier Fragen:
 
 1. Welche Events und Pax wurden aus MouseClick importiert?
-2. Welche verkauften Menues, Varianten und Kundenauswahlen gehoeren zu diesen Events?
+2. Welche verkauften Menues, erwarteten Positionsanzahlen und Kundenauswahlen gehoeren zu diesen Events?
 3. Welche Rezepte und Zutaten muessen nach Review produziert werden?
 4. Welche Einkaufsbedarfe ergeben sich daraus auf derselben Datenbasis?
 
@@ -24,7 +24,7 @@ In Scope:
 - Rezeptzutaten mit Mengen, Einheiten, Notizen und Produktionsbasis.
 - Importcenter fuer strukturierte Importdaten.
 - Bedarf-Import aus MouseClick-Produktbedarf-CSV.
-- Rekonstruktion von Events, Pax, verkauftem Menue, Variante und Kundenauswahl.
+- Rekonstruktion von Events, Pax, verkauftem Menue, erwarteter Positionsanzahl und Kundenauswahl.
 - Review-Oberflaeche fuer importierte Events und ausgewaehlte Positionen.
 - Produktionslaeufe mit Menues und Pax.
 - Produktionsausgabe aus Rezeptaggregation.
@@ -76,7 +76,7 @@ Fuehrende Tabellen und Relationen:
 - `supplier_products`: Lieferantenartikel, Packung, Preis, Einheit und Lieferantenbezug.
 - `import_jobs` und `data_import_log`: Importstatus und nachvollziehbare Logs.
 - `imported_events`: aus MouseClick rekonstruierte Events.
-- `imported_event_orders`: pro Event verkauftes Menue inklusive Variante und Pax.
+- `imported_event_orders`: pro Event verkauftes Menue inklusive Pax und erwarteter Positionsanzahl aus dem Originaltext.
 - `imported_event_selected_items`: ausschliesslich tatsaechlich gewaehlte Kundenpositionen.
 - `kitchen_batches`: zentrale Planungseinheit fuer Zeitraum und Produktionslauf.
 - `kitchen_batch_items`: Menue plus Pax je Produktionslauf.
@@ -89,7 +89,7 @@ Die Live-Supabase-Datenbank ist fuer produktive Daten fuehrend. Repository-Migra
 
 Der Bedarf-Import trennt drei Datenebenen strikt:
 
-1. Menuekatalog: Menues, Varianten, Positionen und Add-ons aus PDF/DB als Masterdaten.
+1. Menuekatalog: Menues, auswählbare Positionen und Add-ons aus PDF/DB als Masterdaten.
 2. Produktbedarf-CSV: konkrete Verkaufs- und Auftragsmomentaufnahme aus MouseClick.
 3. Kundenauswahl: tatsaechlich bestellte Positionen innerhalb eines Menues.
 
@@ -98,18 +98,18 @@ Verbindliche Regeln:
 - Der Import darf den Menuekatalog nicht veraendern.
 - Eine Produktbedarfszeile darf mehrere Events enthalten und muss in einzelne `imported_events`/Orders zerlegt werden.
 - Produktnamen werden gegen Menues gematcht, nicht gegen Rezepte oder Zutaten.
-- Varianten wie `3 Teile`, `4 Teile`, `5 Teile`, `6 Teile`, `8 Teile`, `9 Teile`, `Lunch`, `Grab and Go`, `BBQ`, `Family Style`, `Buffet` und `Sharing Plates` muessen erkannt werden.
+- Positionsanzahlen wie `3 Teile`, `4 Teile`, `5 Teile`, `6 Teile`, `8 Teile` und `9 Teile` muessen als Erwartungswert erkannt werden.
 - Die Langbezeichnung wird gegen Positionen des gematchten Menues ausgewertet.
 - Es duerfen nur erkannte oder manuell bestaetigte Kundenpositionen in `imported_event_selected_items` gespeichert werden.
 - Nicht erkannte Positionen werden als Review-Items gespeichert und nicht verworfen.
 - Unter 85 Prozent Confidence erfolgt keine automatische Freigabe.
-- Variantenabweichungen erzeugen Review-Status, etwa 6 Teile mit nur 5 erkannten Positionen.
+- Abweichungen zwischen erwarteter Positionsanzahl und erkannter Auswahl erzeugen Review-Status, etwa 6 Teile mit nur 5 erkannten Positionen.
 - Erst nach Review duerfen Produktions- und Einkaufsdaten berechnet werden.
 
 Review-Funktionen:
 
 - Eventname und Pax anzeigen.
-- Menue und Variante je Order aendern.
+- Menue und erwartete Positionsanzahl je Order pruefen.
 - Positionen hinzufuegen, entfernen oder austauschen.
 - Neue Positionen im Katalog anlegen und dem Menue zuordnen.
 - Review-Zuordnung speichern.
@@ -170,7 +170,7 @@ Pflicht:
 
 1. Produktbedarf-CSV hochladen.
 2. Events und Orders automatisch rekonstruieren lassen.
-3. Menues, Varianten und Kundenpositionen pruefen.
+3. Menues, erwartete Positionsanzahl und Kundenpositionen pruefen.
 4. Unklare Positionen zuordnen oder neu anlegen.
 5. Review speichern.
 6. Erst danach Produktions- und Einkaufsberechnung ausloesen.
@@ -223,7 +223,7 @@ Synology nutzt `docker-compose.synology.yml`. Produktive Credentials bleiben auf
 
 ## 12. Akzeptanzkriterien V5.2
 
-- Paketversion ist `5.2.0`.
+- Paketversion ist `5.2.1`.
 - Sichtbare Produktversion ist V5.2.
 - Autoritative Spezifikation ist diese Datei.
 - Bedarf-Import speichert Events, Orders und Kundenauswahl in den neuen Importtabellen.

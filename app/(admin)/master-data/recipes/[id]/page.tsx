@@ -59,12 +59,13 @@ export default function RecipeDetailPage() {
   const yieldUnitLabel = recipe.yield_unit
     ? recipe.yield_unit.short_name || recipe.yield_unit.name
     : null
+  const needsRecipeReview = recipe.needs_review || recipe.recipe_status === 'incomplete'
 
   return (
     <div className="flex flex-col">
       <PageHeader
         title={recipe.name}
-        description={`Rezeptcode ${recipe.recipe_code}`}
+        description={`Rezeptcode ${recipe.recipe_code}${needsRecipeReview ? ' · unvollständig' : ''}`}
         actions={
           <div className="flex gap-2">
             <Button asChild variant="outline">
@@ -89,6 +90,11 @@ export default function RecipeDetailPage() {
             <CardTitle>Rezeptbasis</CardTitle>
           </CardHeader>
           <CardContent>
+            {needsRecipeReview && (
+              <div className="mb-3">
+                <Badge variant="warning">Unvollständig - fachlich prüfen</Badge>
+              </div>
+            )}
             <DataRow label="Basisportionen" value={formatNumber(recipe.base_portions, 3)} />
             <DataRow
               label="Ertrag"

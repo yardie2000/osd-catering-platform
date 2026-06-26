@@ -20,7 +20,7 @@ async function checkConnection(): Promise<{ status: ConnectionStatus; detail: st
       .from('units')
       .select('id', { head: true, count: 'exact' })
     if (error) return { status: 'error', detail: error.message }
-    return { status: 'ok', detail: 'Verbunden - Schema V5.2 aktiv' }
+    return { status: 'ok', detail: 'Verbunden - Schema V5.2.1 aktiv' }
   } catch (err) {
     return { status: 'error', detail: err instanceof Error ? err.message : 'Unbekannter Fehler' }
   }
@@ -39,7 +39,7 @@ export default async function SettingsPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <PageHeader title="Einstellungen" description="Plattformkonfiguration, Schema-Status und V5.2-Betrieb" />
+      <PageHeader title="Einstellungen" description="Plattformkonfiguration, Schema-Status und V5.2.1-Betrieb" />
       <div className="max-w-3xl space-y-6 p-4 sm:p-6 lg:p-8">
 
         {/* Connection status */}
@@ -81,12 +81,12 @@ export default async function SettingsPage() {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base">Schema-Status</CardTitle>
-              <Badge variant="success">V5.2</Badge>
+              <Badge variant="success">V5.2.1</Badge>
             </div>
           </CardHeader>
           <CardContent className="text-sm space-y-3 text-muted-foreground">
             <p className="text-xs">
-              Stammdaten, Rezepte, Menues und Positionen sind aktiv. In V5.2 ist der MouseClick-Produktbedarfimport als Review-Workflow verfuegbar: Events, verkaufte Menues, Varianten und tatsaechlich gewaehlte Kundenpositionen werden getrennt gespeichert.
+              Stammdaten, Rezepte, Menues, Positionen und Add-ons sind aktiv. In V5.2.1 ist der MouseClick-Produktbedarfimport als Review-Workflow verfuegbar: Events, verkaufte Menues, erwartete Positionsanzahl und tatsaechlich gewaehlte Kundenpositionen werden getrennt gespeichert.
             </p>
             <div className="grid grid-cols-1 gap-x-4 gap-y-1 font-mono text-xs sm:grid-cols-2">
               <span className="text-foreground">menus.menu_name</span>        <span>✓ aktiv</span>
@@ -109,11 +109,11 @@ export default async function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* V5.2 Operations workflow */}
+        {/* V5.2.1 Operations workflow */}
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Betriebsablauf (V5.2)</CardTitle>
+              <CardTitle className="text-base">Betriebsablauf (V5.2.1)</CardTitle>
               <Badge variant="success">Aktiv</Badge>
             </div>
           </CardHeader>

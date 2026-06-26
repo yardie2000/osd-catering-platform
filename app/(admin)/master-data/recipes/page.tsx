@@ -46,6 +46,10 @@ function RecipesInner() {
     () => recipes.filter((recipe) => recipe.scalable).length,
     [recipes]
   )
+  const reviewCount = useMemo(
+    () => recipes.filter((recipe) => recipe.needs_review || recipe.recipe_status === 'incomplete').length,
+    [recipes],
+  )
 
   async function handleDelete(id: string, name: string) {
     if (!confirm(`Rezept "${name}" wirklich löschen?`)) return
@@ -97,10 +101,8 @@ function RecipesInner() {
 
           <Card>
             <CardContent className="p-6">
-              <p className="text-sm text-muted-foreground">Nicht skalierbar</p>
-              <p className="mt-2 text-2xl font-semibold">
-                {formatNumber(totalRecipes - scalableCount)}
-              </p>
+              <p className="text-sm text-muted-foreground">Fachlich zu prüfen</p>
+              <p className="mt-2 text-2xl font-semibold text-amber-600">{formatNumber(reviewCount)}</p>
             </CardContent>
           </Card>
         </div>
@@ -153,6 +155,9 @@ function RecipesInner() {
                       <TableCell>
                         <div className="space-y-1">
                           <p className="font-medium">{recipe.name}</p>
+                          {(recipe.needs_review || recipe.recipe_status === 'incomplete') && (
+                            <Badge variant="warning" className="text-[10px]">Unvollständig</Badge>
+                          )}
                           <p className="text-sm text-muted-foreground">
                             {recipe.description ? recipe.description.slice(0, 72) : '—'}
                           </p>

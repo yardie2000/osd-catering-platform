@@ -1,4 +1,4 @@
-# OSD Catering Platform V5.2
+# OSD Catering Platform V5.2.1
 
 Operative Catering-Kalkulations- und Kuechenplanungsplattform fuer OSD Event GmbH.
 
@@ -8,8 +8,8 @@ Autoritative Spezifikation: [OSD_CATERING_PLATFORM_V5_2_SPEC.md](OSD_CATERING_PL
 
 ## Status
 
-Release: V5.2
-Package: `osd-catering-platform@5.2.0`
+Release: V5.2.1
+Package: `osd-catering-platform@5.2.1`
 Deployment: GitHub Actions baut das Docker-Image und veroeffentlicht es in GHCR; Synology aktualisiert den Container per Watchtower.
 
 ## Kernmodule
@@ -18,7 +18,7 @@ Deployment: GitHub Actions baut das Docker-Image und veroeffentlicht es in GHCR;
 - Stammdaten: Einheiten, Zutaten, Rezepte, Menues.
 - Menuepositionen mit Rezeptverknuepfung.
 - Importcenter fuer Excel- und Bedarf-Importe.
-- MouseClick-Produktbedarfimport mit Event-, Menue-, Varianten- und Positionsreview.
+- MouseClick-Produktbedarfimport mit Event-, Menue-, Add-on- und Positionsreview.
 - Validierung und Datenqualitaet.
 - Produktionslaeufe mit Menue- und Pax-Eingabe.
 - Produktionsausgabe aus Rezeptaggregation.
@@ -94,8 +94,8 @@ Der Workflow:
 
 Synology-Compose-Referenz: [docker-compose.synology.yml](docker-compose.synology.yml)
 
-V5.2 benoetigt vor produktiver Nutzung die additive Migration
-`supabase/migrations/20260626000001_imported_event_orders.sql` in der Live-Supabase-Datenbank.
+V5.2.1 benoetigt vor produktiver Nutzung die additive Migration
+`supabase/migrations/20260626000003_pdf_catalog_addons_recipe_stubs.sql` in der Live-Supabase-Datenbank.
 
 ## Environment
 
