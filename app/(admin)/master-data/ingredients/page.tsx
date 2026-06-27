@@ -1,12 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { memo, useCallback, useState } from 'react'
 import Link from 'next/link'
 import { useIngredients, useIngredientCategories, useCreateIngredient, useUpdateIngredient, useDeleteIngredient } from '@/hooks/use-ingredients'
+import { usePreferredSuppliers } from '@/hooks/use-supplier-articles'
+import { useVirtualRows } from '@/hooks/use-virtual-rows'
 import { PageHeader } from '@/components/layout/page-header'
+import { PageContent } from '@/components/layout/page-content'
 import { IngredientForm, type IngredientFormValues } from '@/components/ingredients/ingredient-form'
 import { IngredientSupplierArticles } from '@/components/ingredients/ingredient-supplier-articles'
-import { usePreferredSuppliers } from '@/hooks/use-supplier-articles'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -14,11 +16,71 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ErrorState } from '@/components/ui/state'
+import { ErrorState, LoadingState, EmptyState } from '@/components/ui/state'
 import { Plus, Pencil, Trash2, Search, Filter, Eye, Truck } from 'lucide-react'
 import { toast } from 'sonner'
 import { getErrorMessage } from '@/lib/errors'
 import type { IngredientWithUnit } from '@/types'
+
+const ROW_HEIGHT = 56
+const VIRTUALIZE_THRESHOLD = 80
+
+// Memoisierte Zeile: rendert bei Scroll/Filter nur neu, wenn sich ihre Props ändern.
+const IngredientRow = memo(function IngredientRow({
+  ing, supplierLabel, isPreferred, onEdit, onDelete,
+}: {
+  ing: IngredientWithUnit
+  supplierLabel: string | null
+  isPreferred: boolean
+  onEdit: (ing: IngredientWithUnit) => void
+  onDelete: (ing: IngredientWithUnit) => void
+}) {
+  return (
+    <TableRow className="h-14">
+      <TableCell>
+        <Link href={`/master-data/ingredients/${ing.id}`} className="hover:underline">
+          <Badge variant="outline">{ing.ingredient_code}</Badge>
+        </Link>
+      </TableCell>
+      <TableCell className="font-medium">
+        <Link href={`/master-data/ingredients/${ing.id}`} className="hover:underline">{ing.name}</Link>
+      </TableCell>
+      <TableCell className="text-muted-foreground">{ing.category ?? '—'}</TableCell>
+      <TableCell className="text-muted-foreground">
+        {ing.default_unit ? `${ing.default_unit.name} (${ing.default_unit.unit_code})` : '—'}
+      </TableCell>
+      <TableCell>
+        {supplierLabel ? (
+          <div className="flex flex-col gap-1">
+            <span className="font-medium">{supplierLabel}</span>
+            <Badge variant="outline" className="text-[10px] px-1.5">{isPreferred ? 'bevorzugter EK' : 'Lieferant zugeordnet'}</Badge>
+          </div>
+        ) : (
+          <span className="text-muted-foreground">Fehlt</span>
+        )}
+      </TableCell>
+      <TableCell>
+        <div className="flex flex-wrap gap-1">
+          {ing.allergens.length === 0 ? (
+            <span className="text-muted-foreground text-xs">Keine</span>
+          ) : (
+            ing.allergens.slice(0, 3).map((a) => <Badge key={a} variant="warning" className="text-[10px] px-1.5">{a}</Badge>)
+          )}
+          {ing.allergens.length > 3 && <Badge variant="outline" className="text-[10px] px-1.5">+{ing.allergens.length - 3}</Badge>}
+        </div>
+      </TableCell>
+      <TableCell>
+        <div className="flex justify-end gap-1">
+          <Button asChild variant="ghost" size="icon" title="Ansehen" aria-label={`${ing.name} ansehen`}>
+            <Link href={`/master-data/ingredients/${ing.id}`}><Eye className="h-3.5 w-3.5" /></Link>
+          </Button>
+          <Button variant="ghost" size="icon" title="Bearbeiten" aria-label={`${ing.name} bearbeiten`} onClick={() => onEdit(ing)}><Pencil className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" title="Löschen" aria-label={`${ing.name} löschen`} onClick={() => onDelete(ing)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  )
+})
 
 export default function IngredientsPage() {
   const [search, setSearch] = useState('')
@@ -32,37 +94,34 @@ export default function IngredientsPage() {
   const updateIngredient = useUpdateIngredient()
   const deleteIngredient = useDeleteIngredient()
 
+  const handleDelete = useCallback(async (ing: IngredientWithUnit) => {
+    if (!confirm(`Zutat „${ing.name}" wirklich löschen?`)) return
+    try { await deleteIngredient.mutateAsync(ing.id); toast.success('Zutat gelöscht') }
+    catch (e) { toast.error(getErrorMessage(e)) }
+  }, [deleteIngredient])
+
+  const handleEditOpen = useCallback((ing: IngredientWithUnit) => setDialog({ edit: ing }), [])
+
   async function handleCreate(values: IngredientFormValues) {
     try {
       await createIngredient.mutateAsync({
-        ingredient_code: values.ingredient_code,
-        name: values.name,
-        category: values.category ?? null,
-        default_unit_id: values.default_unit_id ?? null,
-        supplier_name: values.supplier_name ?? null,
-        allergens: values.allergens,
-        notes: values.notes ?? null,
+        ingredient_code: values.ingredient_code, name: values.name, category: values.category ?? null,
+        default_unit_id: values.default_unit_id ?? null, supplier_name: values.supplier_name ?? null,
+        allergens: values.allergens, notes: values.notes ?? null,
       })
-      toast.success('Zutat erstellt')
-      setDialog(null)
+      toast.success('Zutat erstellt'); setDialog(null)
     } catch (e) { toast.error(getErrorMessage(e)) }
   }
 
   async function handleEdit(id: string, values: IngredientFormValues) {
-    try {
-      await updateIngredient.mutateAsync({ id, payload: values })
-      toast.success('Zutat aktualisiert')
-      setDialog(null)
-    } catch (e) { toast.error(getErrorMessage(e)) }
+    try { await updateIngredient.mutateAsync({ id, payload: values }); toast.success('Zutat aktualisiert'); setDialog(null) }
+    catch (e) { toast.error(getErrorMessage(e)) }
   }
 
-  async function handleDelete(id: string, name: string) {
-    if (!confirm(`Zutat „${name}" wirklich löschen?`)) return
-    try {
-      await deleteIngredient.mutateAsync(id)
-      toast.success('Zutat gelöscht')
-    } catch (e) { toast.error(getErrorMessage(e)) }
-  }
+  // Virtualisierung großer Listen (bis ~2500 Zutaten): nur sichtbare Zeilen rendern.
+  const { scrollRef, window: win } = useVirtualRows({ count: ingredients.length, rowHeight: ROW_HEIGHT })
+  const virtual = ingredients.length > VIRTUALIZE_THRESHOLD
+  const visible = virtual ? ingredients.slice(win.start, win.end) : ingredients
 
   return (
     <div className="flex flex-col h-full">
@@ -74,28 +133,17 @@ export default function IngredientsPage() {
             <Button asChild variant="outline" size="sm">
               <Link href="/master-data/ingredients/suppliers"><Truck className="h-4 w-4" /> Lieferanten zuordnen</Link>
             </Button>
-            <Button onClick={() => setDialog('create')} variant="outline" size="sm">
-              <Plus className="h-4 w-4" /> Schnell anlegen
-            </Button>
-            <Button asChild size="sm">
-              <Link href="/master-data/ingredients/new">
-                <Plus className="h-4 w-4" /> Neue Zutat
-              </Link>
-            </Button>
+            <Button onClick={() => setDialog('create')} variant="outline" size="sm"><Plus className="h-4 w-4" /> Schnell anlegen</Button>
+            <Button asChild size="sm"><Link href="/master-data/ingredients/new"><Plus className="h-4 w-4" /> Neue Zutat</Link></Button>
           </div>
         }
       />
-      <div className="space-y-4 p-4 sm:p-6 lg:p-8">
+      <PageContent>
         {isError && <ErrorState error={error} title="Zutaten konnten nicht geladen werden" />}
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <div className="relative flex-1 min-w-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Zutaten nach Code, Name oder Lieferant suchen…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
-            />
+            <Input placeholder="Zutaten nach Code, Name oder Lieferant suchen…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
           </div>
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
             <SelectTrigger className="w-full sm:w-48">
@@ -110,84 +158,45 @@ export default function IngredientsPage() {
         </div>
 
         <Card>
-          <CardContent className="p-0 overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Code</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Kategorie</TableHead>
-                  <TableHead>Standardeinheit</TableHead>
-                  <TableHead>Lieferant</TableHead>
-                  <TableHead>Allergene</TableHead>
-                  <TableHead className="w-28 text-right">Aktionen</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Laden…</TableCell></TableRow>
-                ) : ingredients.length === 0 ? (
-                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Keine Zutaten gefunden.</TableCell></TableRow>
-                ) : (
-                  ingredients.map((ing) => (
-                    <TableRow key={ing.id}>
-                      <TableCell>
-                        <Link href={`/master-data/ingredients/${ing.id}`} className="hover:underline">
-                          <Badge variant="outline">{ing.ingredient_code}</Badge>
-                        </Link>
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        <Link href={`/master-data/ingredients/${ing.id}`} className="hover:underline">
-                          {ing.name}
-                        </Link>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{ing.category ?? '—'}</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {ing.default_unit ? `${ing.default_unit.name} (${ing.default_unit.unit_code})` : '—'}
-                      </TableCell>
-                      <TableCell>
-                        {(preferredSuppliers[ing.id] ?? ing.supplier_name) ? (
-                          <div className="flex flex-col gap-1">
-                            <span className="font-medium">{preferredSuppliers[ing.id] ?? ing.supplier_name}</span>
-                            <Badge variant="outline" className="text-[10px] px-1.5">
-                              {preferredSuppliers[ing.id] ? 'bevorzugter EK' : 'Lieferant zugeordnet'}
-                            </Badge>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">Fehlt</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {ing.allergens.length === 0 ? (
-                            <span className="text-muted-foreground text-xs">Keine</span>
-                          ) : (
-                            ing.allergens.slice(0, 3).map((a) => (
-                              <Badge key={a} variant="warning" className="text-[10px] px-1.5">{a}</Badge>
-                            ))
-                          )}
-                          {ing.allergens.length > 3 && (
-                            <Badge variant="outline" className="text-[10px] px-1.5">+{ing.allergens.length - 3}</Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex justify-end gap-1">
-                          <Button asChild variant="ghost" size="icon" title="Ansehen" aria-label={`${ing.name} ansehen`}>
-                            <Link href={`/master-data/ingredients/${ing.id}`}><Eye className="h-3.5 w-3.5" /></Link>
-                          </Button>
-                          <Button variant="ghost" size="icon" title="Bearbeiten" aria-label={`${ing.name} bearbeiten`} onClick={() => setDialog({ edit: ing })}><Pencil className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" title="Löschen" aria-label={`${ing.name} löschen`} onClick={() => handleDelete(ing.id, ing.name)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                        </div>
-                      </TableCell>
+          <CardContent className="p-0">
+            {isLoading ? (
+              <LoadingState label="Zutaten werden geladen…" />
+            ) : ingredients.length === 0 ? (
+              <EmptyState title="Keine Zutaten gefunden" description="Suche/Filter anpassen oder neue Zutat anlegen." />
+            ) : (
+              <div ref={scrollRef} className="max-h-[68vh] overflow-auto">
+                <Table>
+                  <TableHeader className="sticky top-0 z-10 bg-card">
+                    <TableRow>
+                      <TableHead>Code</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Kategorie</TableHead>
+                      <TableHead>Standardeinheit</TableHead>
+                      <TableHead>Lieferant</TableHead>
+                      <TableHead>Allergene</TableHead>
+                      <TableHead className="w-28 text-right">Aktionen</TableHead>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {virtual && win.padTop > 0 && <tr aria-hidden><td colSpan={7} style={{ height: win.padTop, padding: 0 }} /></tr>}
+                    {visible.map((ing) => (
+                      <IngredientRow
+                        key={ing.id}
+                        ing={ing}
+                        supplierLabel={preferredSuppliers[ing.id] ?? ing.supplier_name ?? null}
+                        isPreferred={!!preferredSuppliers[ing.id]}
+                        onEdit={handleEditOpen}
+                        onDelete={handleDelete}
+                      />
+                    ))}
+                    {virtual && win.padBottom > 0 && <tr aria-hidden><td colSpan={7} style={{ height: win.padBottom, padding: 0 }} /></tr>}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </CardContent>
         </Card>
-      </div>
+      </PageContent>
 
       <Dialog open={dialog === 'create'} onOpenChange={(o) => !o && setDialog(null)}>
         <DialogContent className="max-w-xl">
