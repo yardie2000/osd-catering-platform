@@ -1,15 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Plus, Pencil, Trash2, Search, Layers, GitMerge } from 'lucide-react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { Plus, Pencil, Trash2, Search, ChevronRight, ChevronDown, GitMerge, BookOpen, Carrot, Keyboard } from 'lucide-react'
 import { toast } from 'sonner'
 
 import {
-  usePositions, usePosition, useCreatePosition, useUpdatePosition, useDeletePosition,
+  usePositions, useCreatePosition, useUpdatePosition, useDeletePosition,
 } from '@/hooks/use-positions'
 import { getErrorMessage } from '@/lib/errors'
 import { PageHeader } from '@/components/layout/page-header'
-import { PositionComponentsDialog } from '@/components/master-data/positions/position-components-dialog'
+import { PositionInlineEditor } from '@/components/master-data/positions/position-inline-editor'
 import { PositionMergeDialog } from '@/components/master-data/positions/position-merge-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,6 +23,31 @@ import type { PositionListRow } from '@/services/positions.service'
 
 type FormState = { name: string; dietary: string; default_price: string; notes: string; allergens: string[] }
 const EMPTY: FormState = { name: '', dietary: '', default_price: '', notes: '', allergens: [] }
+
+// ── Batch-Filter (Teil 5) ──────────────────────────────────────
+type FilterKey = 'all' | 'no_components' | 'no_recipe' | 'no_ingredient' | 'single' | 'pdf'
+const FILTERS: { key: FilterKey; label: string }[] = [
+  { key: 'all', label: 'Alle' },
+  { key: 'no_components', label: 'Ohne Komponenten' },
+  { key: 'no_recipe', label: 'Ohne Rezept' },
+  { key: 'no_ingredient', label: 'Ohne Zutaten' },
+  { key: 'single', label: 'Nur 1 Komponente' },
+  { key: 'pdf', label: 'PDF-Import' },
+]
+
+const isPdf = (p: PositionListRow) =>
+  (p.position_code?.startsWith('PDF-') ?? false) || (p.notes?.includes('PDF') ?? false)
+
+function matchesFilter(p: PositionListRow, f: FilterKey): boolean {
+  switch (f) {
+    case 'no_components': return p.componentCount === 0
+    case 'no_recipe':     return p.recipeCount === 0
+    case 'no_ingredient': return p.ingredientCount === 0
+    case 'single':        return p.componentCount === 1
+    case 'pdf':           return isPdf(p)
+    default:              return true
+  }
+}
 
 function PositionForm({ value, onChange }: { value: FormState; onChange: (v: FormState) => void }) {
   function toggleAllergen(a: string) {
@@ -66,8 +91,30 @@ function PositionForm({ value, onChange }: { value: FormState; onChange: (v: For
   )
 }
 
+function StatusCell({ p }: { p: PositionListRow }) {
+  if (p.componentCount === 0) {
+    return <Badge variant="error">Leer</Badge>
+  }
+  return (
+    <div className="flex items-center gap-1.5">
+      <Badge variant="success">Vollständig</Badge>
+      {p.recipeCount > 0 && (
+        <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground" title={`${p.recipeCount} Rezept-Komponente(n)`}>
+          <BookOpen className="h-3 w-3" />{p.recipeCount}
+        </span>
+      )}
+      {p.ingredientCount > 0 && (
+        <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground" title={`${p.ingredientCount} Zutat-Komponente(n)`}>
+          <Carrot className="h-3 w-3" />{p.ingredientCount}
+        </span>
+      )}
+    </div>
+  )
+}
+
 export default function PositionsPage() {
   const [search, setSearch] = useState('')
+  const [filter, setFilter] = useState<FilterKey>('all')
   const { data: positions = [], isLoading } = usePositions(search)
   const createPosition = useCreatePosition()
   const updatePosition = useUpdatePosition()
@@ -75,17 +122,42 @@ export default function PositionsPage() {
 
   const [dialog, setDialog] = useState<'create' | { edit: PositionListRow } | null>(null)
   const [form, setForm] = useState<FormState>(EMPTY)
-  const [componentsId, setComponentsId] = useState<string | null>(null)
-  const { data: componentsPosition } = usePosition(componentsId ?? '')
+  const [openId, setOpenId] = useState<string | null>(null)
   const [mergeSource, setMergeSource] = useState<PositionListRow | null>(null)
+  const [selected, setSelected] = useState(0)
+  const tableRef = useRef<HTMLDivElement>(null)
+  const selectedRowRef = useRef<HTMLTableRowElement>(null)
+
+  const rows = useMemo(
+    () => positions.filter((p) => matchesFilter(p, filter)),
+    [positions, filter]
+  )
+
+  const counts = useMemo(() => {
+    const c: Record<FilterKey, number> = { all: positions.length, no_components: 0, no_recipe: 0, no_ingredient: 0, single: 0, pdf: 0 }
+    for (const p of positions) {
+      if (p.componentCount === 0) c.no_components++
+      if (p.recipeCount === 0) c.no_recipe++
+      if (p.ingredientCount === 0) c.no_ingredient++
+      if (p.componentCount === 1) c.single++
+      if (isPdf(p)) c.pdf++
+    }
+    return c
+  }, [positions])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const component = params.get('component')
     const initialSearch = params.get('search')
     if (initialSearch) setSearch(initialSearch)
-    if (component) setComponentsId(component)
+    if (component) setOpenId(component)
   }, [])
+
+  // Auswahl gültig halten, wenn sich die gefilterte Liste ändert.
+  useEffect(() => { setSelected((s) => Math.min(s, Math.max(0, rows.length - 1))) }, [rows.length])
+
+  // Ausgewählte Zeile sichtbar halten.
+  useEffect(() => { selectedRowRef.current?.scrollIntoView({ block: 'nearest' }) }, [selected, openId])
 
   function openCreate() { setForm(EMPTY); setDialog('create') }
   function openEdit(p: PositionListRow) {
@@ -124,74 +196,150 @@ export default function PositionsPage() {
     catch (e) { toast.error(getErrorMessage(e)) }
   }
 
+  // ── Keyboard-Workflow (Teil 4) ────────────────────────────────
+  function isTypingTarget(el: EventTarget | null) {
+    const node = el as HTMLElement | null
+    if (!node) return false
+    if (node.closest?.('[data-inline-editor]')) return true
+    const tag = node.tagName
+    return tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || node.isContentEditable
+  }
+
+  function onKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (e.key === 'Escape') { setOpenId(null); tableRef.current?.focus(); return }
+    if (rows.length === 0) return
+    const typing = isTypingTarget(e.target)
+
+    // „Speichern & weiter": auch im Editor zur nächsten Position springen.
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'Enter' || e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      e.preventDefault()
+      const dir = e.key === 'ArrowUp' ? -1 : 1
+      const next = Math.min(rows.length - 1, Math.max(0, selected + dir))
+      setSelected(next)
+      setOpenId(rows[next].id)
+      tableRef.current?.focus()
+      return
+    }
+
+    if (typing) return // im Eingabefeld: normale Tastatur (Tab/Pfeile) nicht abfangen
+
+    if (e.key === 'ArrowDown' || e.key === 'j') {
+      e.preventDefault(); setSelected((s) => Math.min(rows.length - 1, s + 1))
+    } else if (e.key === 'ArrowUp' || e.key === 'k') {
+      e.preventDefault(); setSelected((s) => Math.max(0, s - 1))
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      const p = rows[selected]
+      if (p) setOpenId((cur) => (cur === p.id ? null : p.id))
+    }
+  }
+
   return (
     <div className="flex flex-col h-full">
       <PageHeader
         title="Positionen"
-        description="Wiederverwendbarer Positions-Katalog — zentral pflegen, in mehreren Menüs nutzen"
+        description="Produktionsmodus — Status auf einen Blick, Komponenten direkt in der Zeile bearbeiten"
         actions={<Button onClick={openCreate} size="sm"><Plus className="h-4 w-4" /> Neue Position</Button>}
       />
       <div className="p-8 space-y-4">
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Positionen nach Name oder Code suchen…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative max-w-md flex-1 min-w-[16rem]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Positionen nach Name oder Code suchen…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Keyboard className="h-3.5 w-3.5" />
+            <span>↑/↓ wählen · Enter auf-/zuklappen · Strg+Enter speichern &amp; weiter · Esc schließen</span>
+          </div>
+        </div>
+
+        {/* Batch-Filter (Teil 5) */}
+        <div className="flex flex-wrap gap-2">
+          {FILTERS.map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              onClick={() => setFilter(f.key)}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                filter === f.key ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary/50'
+              }`}
+            >
+              {f.label}
+              <span className={`rounded-full px-1.5 ${filter === f.key ? 'bg-primary-foreground/20' : 'bg-muted'}`}>{counts[f.key]}</span>
+            </button>
+          ))}
         </div>
 
         <Card>
           <CardContent className="p-0 overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Ernährung</TableHead>
-                  <TableHead>Allergene</TableHead>
-                  <TableHead>Preis</TableHead>
-                  <TableHead>Komponenten</TableHead>
-                  <TableHead>In Menüs</TableHead>
-                  <TableHead className="w-28 text-right">Aktionen</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Laden…</TableCell></TableRow>
-                ) : positions.length === 0 ? (
-                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Keine Positionen gefunden.</TableCell></TableRow>
-                ) : (
-                  positions.map((p) => (
-                    <TableRow key={p.id}>
-                      <TableCell>
-                        <div className="font-medium">{p.name}</div>
-                        {p.position_code && <div className="font-mono text-[11px] text-muted-foreground">{p.position_code}</div>}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{p.dietary ?? '—'}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {p.allergens.length === 0 ? <span className="text-muted-foreground text-xs">Keine</span>
-                            : p.allergens.slice(0, 3).map((a) => <Badge key={a} variant="warning" className="text-[10px] px-1.5">{a}</Badge>)}
-                          {p.allergens.length > 3 && <Badge variant="outline" className="text-[10px] px-1.5">+{p.allergens.length - 3}</Badge>}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{p.default_price != null ? `${p.default_price} €` : '—'}</TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setComponentsId(p.id)}>
-                          <Layers className="h-3.5 w-3.5" /> {p.componentCount}
-                        </Button>
-                      </TableCell>
-                      <TableCell>
-                        {p.usageCount > 0 ? <Badge variant="secondary">{p.usageCount}</Badge> : <span className="text-muted-foreground text-xs">0</span>}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="icon" title="Bearbeiten" onClick={() => openEdit(p)}><Pencil className="h-3.5 w-3.5" /></Button>
-                          <Button variant="ghost" size="icon" title="Mit anderer Position zusammenführen" onClick={() => setMergeSource(p)}><GitMerge className="h-3.5 w-3.5" /></Button>
-                          <Button variant="ghost" size="icon" title="Löschen" onClick={() => handleDelete(p)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+            <div ref={tableRef} tabIndex={0} onKeyDown={onKeyDown} className="outline-none focus-visible:ring-2 focus-visible:ring-ring/40 rounded-md">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-8"></TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Ernährung</TableHead>
+                    <TableHead>Komponenten</TableHead>
+                    <TableHead>In Menüs</TableHead>
+                    <TableHead className="w-24 text-right">Aktionen</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Laden…</TableCell></TableRow>
+                  ) : rows.length === 0 ? (
+                    <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Keine Positionen für diesen Filter.</TableCell></TableRow>
+                  ) : (
+                    rows.map((p, idx) => {
+                      const open = openId === p.id
+                      const isSel = idx === selected
+                      return (
+                        <Fragment key={p.id}>
+                          <TableRow
+                            ref={isSel ? selectedRowRef : undefined}
+                            data-selected={isSel}
+                            onMouseDown={() => setSelected(idx)}
+                            className={`cursor-pointer ${isSel ? 'bg-accent/40' : ''}`}
+                            onClick={() => setOpenId((cur) => (cur === p.id ? null : p.id))}
+                          >
+                            <TableCell className="text-muted-foreground">
+                              {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                            </TableCell>
+                            <TableCell>
+                              <div className="font-medium">{p.name}</div>
+                              {p.position_code && <div className="font-mono text-[11px] text-muted-foreground">{p.position_code}</div>}
+                            </TableCell>
+                            <TableCell><StatusCell p={p} /></TableCell>
+                            <TableCell className="text-muted-foreground">{p.dietary ?? '—'}</TableCell>
+                            <TableCell className="font-medium tabular-nums">{p.componentCount}</TableCell>
+                            <TableCell>
+                              {p.usageCount > 0 ? <Badge variant="secondary">{p.usageCount}</Badge> : <span className="text-muted-foreground text-xs">0</span>}
+                            </TableCell>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <div className="flex justify-end gap-1">
+                                <Button variant="ghost" size="icon" title="Stammdaten bearbeiten" onClick={() => openEdit(p)}><Pencil className="h-3.5 w-3.5" /></Button>
+                                <Button variant="ghost" size="icon" title="Mit anderer Position zusammenführen" onClick={() => setMergeSource(p)}><GitMerge className="h-3.5 w-3.5" /></Button>
+                                <Button variant="ghost" size="icon" title="Löschen" onClick={() => handleDelete(p)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                          {open && (
+                            <TableRow className="hover:bg-transparent">
+                              <TableCell colSpan={7} className="p-0">
+                                <div data-inline-editor>
+                                  <PositionInlineEditor positionId={p.id} />
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </Fragment>
+                      )
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -206,12 +354,6 @@ export default function PositionsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <PositionComponentsDialog
-        open={componentsId !== null}
-        onOpenChange={(o) => { if (!o) setComponentsId(null) }}
-        position={componentsPosition ?? null}
-      />
 
       <PositionMergeDialog
         open={mergeSource !== null}
