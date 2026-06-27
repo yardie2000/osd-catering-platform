@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Plus, Pencil, Trash2, Search, ChevronRight, ChevronDown, GitMerge, BookOpen, Carrot, Keyboard } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -9,6 +9,7 @@ import {
 } from '@/hooks/use-positions'
 import { getErrorMessage } from '@/lib/errors'
 import { PageHeader } from '@/components/layout/page-header'
+import { PageContent } from '@/components/layout/page-content'
 import { PositionInlineEditor } from '@/components/master-data/positions/position-inline-editor'
 import { PositionMergeDialog } from '@/components/master-data/positions/position-merge-dialog'
 import { Button } from '@/components/ui/button'
@@ -18,6 +19,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
+import { LoadingState, EmptyState } from '@/components/ui/state'
 import { ALLERGENS } from '@/types'
 import type { PositionListRow } from '@/services/positions.service'
 
@@ -112,6 +114,54 @@ function StatusCell({ p }: { p: PositionListRow }) {
   )
 }
 
+// Memoisierte Zeile: bei Tastatur-Navigation rendern nur die Zeilen neu, deren
+// Auswahl-/Aufklapp-Status sich tatsächlich ändert (nicht alle hunderte Zeilen).
+const PositionRow = memo(function PositionRow({
+  p, idx, isSel, open, innerRef, onSelect, onToggleOpen, onEdit, onMerge, onDelete,
+}: {
+  p: PositionListRow
+  idx: number
+  isSel: boolean
+  open: boolean
+  innerRef?: React.Ref<HTMLTableRowElement>
+  onSelect: (idx: number) => void
+  onToggleOpen: (id: string) => void
+  onEdit: (p: PositionListRow) => void
+  onMerge: (p: PositionListRow) => void
+  onDelete: (p: PositionListRow) => void
+}) {
+  return (
+    <TableRow
+      ref={innerRef}
+      data-selected={isSel}
+      onMouseDown={() => onSelect(idx)}
+      className={`cursor-pointer ${isSel ? 'bg-accent/40' : ''}`}
+      onClick={() => onToggleOpen(p.id)}
+    >
+      <TableCell className="text-muted-foreground">
+        {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+      </TableCell>
+      <TableCell>
+        <div className="font-medium">{p.name}</div>
+        {p.position_code && <div className="font-mono text-[11px] text-muted-foreground">{p.position_code}</div>}
+      </TableCell>
+      <TableCell><StatusCell p={p} /></TableCell>
+      <TableCell className="text-muted-foreground">{p.dietary ?? '—'}</TableCell>
+      <TableCell className="font-medium tabular-nums">{p.componentCount}</TableCell>
+      <TableCell>
+        {p.usageCount > 0 ? <Badge variant="secondary">{p.usageCount}</Badge> : <span className="text-muted-foreground text-xs">0</span>}
+      </TableCell>
+      <TableCell onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-end gap-1">
+          <Button variant="ghost" size="icon" title="Stammdaten bearbeiten" onClick={() => onEdit(p)}><Pencil className="h-3.5 w-3.5" /></Button>
+          <Button variant="ghost" size="icon" title="Mit anderer Position zusammenführen" onClick={() => onMerge(p)}><GitMerge className="h-3.5 w-3.5" /></Button>
+          <Button variant="ghost" size="icon" title="Löschen" onClick={() => onDelete(p)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  )
+})
+
 export default function PositionsPage() {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<FilterKey>('all')
@@ -160,10 +210,12 @@ export default function PositionsPage() {
   useEffect(() => { selectedRowRef.current?.scrollIntoView({ block: 'nearest' }) }, [selected, openId])
 
   function openCreate() { setForm(EMPTY); setDialog('create') }
-  function openEdit(p: PositionListRow) {
+  const openEdit = useCallback((p: PositionListRow) => {
     setForm({ name: p.name, dietary: p.dietary ?? '', default_price: p.default_price?.toString() ?? '', notes: p.notes ?? '', allergens: p.allergens ?? [] })
     setDialog({ edit: p })
-  }
+  }, [])
+  const onSelect = useCallback((i: number) => setSelected(i), [])
+  const onToggleOpen = useCallback((id: string) => setOpenId((cur) => (cur === id ? null : id)), [])
 
   function payloadFromForm() {
     return {
@@ -189,12 +241,12 @@ export default function PositionsPage() {
     } catch (e) { toast.error(getErrorMessage(e)) }
   }
 
-  async function handleDelete(p: PositionListRow) {
+  const handleDelete = useCallback(async (p: PositionListRow) => {
     if (p.usageCount > 0) { toast.error(`Position wird in ${p.usageCount} Menü(s) verwendet — dort erst entfernen.`); return }
     if (!confirm(`Position „${p.name}" wirklich löschen?`)) return
     try { await deletePosition.mutateAsync(p.id); toast.success('Position gelöscht') }
     catch (e) { toast.error(getErrorMessage(e)) }
-  }
+  }, [deletePosition])
 
   // ── Keyboard-Workflow (Teil 4) ────────────────────────────────
   function isTypingTarget(el: EventTarget | null) {
@@ -241,7 +293,7 @@ export default function PositionsPage() {
         description="Produktionsmodus — Status auf einen Blick, Komponenten direkt in der Zeile bearbeiten"
         actions={<Button onClick={openCreate} size="sm"><Plus className="h-4 w-4" /> Neue Position</Button>}
       />
-      <div className="p-8 space-y-4">
+      <PageContent>
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative max-w-md flex-1 min-w-[16rem]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -287,43 +339,27 @@ export default function PositionsPage() {
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
-                    <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Laden…</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="p-0"><LoadingState label="Positionen werden geladen…" /></TableCell></TableRow>
                   ) : rows.length === 0 ? (
-                    <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Keine Positionen für diesen Filter.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="p-0"><EmptyState title="Keine Positionen für diesen Filter" /></TableCell></TableRow>
                   ) : (
                     rows.map((p, idx) => {
                       const open = openId === p.id
                       const isSel = idx === selected
                       return (
                         <Fragment key={p.id}>
-                          <TableRow
-                            ref={isSel ? selectedRowRef : undefined}
-                            data-selected={isSel}
-                            onMouseDown={() => setSelected(idx)}
-                            className={`cursor-pointer ${isSel ? 'bg-accent/40' : ''}`}
-                            onClick={() => setOpenId((cur) => (cur === p.id ? null : p.id))}
-                          >
-                            <TableCell className="text-muted-foreground">
-                              {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                            </TableCell>
-                            <TableCell>
-                              <div className="font-medium">{p.name}</div>
-                              {p.position_code && <div className="font-mono text-[11px] text-muted-foreground">{p.position_code}</div>}
-                            </TableCell>
-                            <TableCell><StatusCell p={p} /></TableCell>
-                            <TableCell className="text-muted-foreground">{p.dietary ?? '—'}</TableCell>
-                            <TableCell className="font-medium tabular-nums">{p.componentCount}</TableCell>
-                            <TableCell>
-                              {p.usageCount > 0 ? <Badge variant="secondary">{p.usageCount}</Badge> : <span className="text-muted-foreground text-xs">0</span>}
-                            </TableCell>
-                            <TableCell onClick={(e) => e.stopPropagation()}>
-                              <div className="flex justify-end gap-1">
-                                <Button variant="ghost" size="icon" title="Stammdaten bearbeiten" onClick={() => openEdit(p)}><Pencil className="h-3.5 w-3.5" /></Button>
-                                <Button variant="ghost" size="icon" title="Mit anderer Position zusammenführen" onClick={() => setMergeSource(p)}><GitMerge className="h-3.5 w-3.5" /></Button>
-                                <Button variant="ghost" size="icon" title="Löschen" onClick={() => handleDelete(p)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
+                          <PositionRow
+                            p={p}
+                            idx={idx}
+                            isSel={isSel}
+                            open={open}
+                            innerRef={isSel ? selectedRowRef : undefined}
+                            onSelect={onSelect}
+                            onToggleOpen={onToggleOpen}
+                            onEdit={openEdit}
+                            onMerge={setMergeSource}
+                            onDelete={handleDelete}
+                          />
                           {open && (
                             <TableRow className="hover:bg-transparent">
                               <TableCell colSpan={7} className="p-0">
@@ -342,7 +378,7 @@ export default function PositionsPage() {
             </div>
           </CardContent>
         </Card>
-      </div>
+      </PageContent>
 
       <Dialog open={dialog === 'create' || (!!dialog && typeof dialog === 'object' && 'edit' in dialog)} onOpenChange={(o) => !o && setDialog(null)}>
         <DialogContent className="max-w-lg">
