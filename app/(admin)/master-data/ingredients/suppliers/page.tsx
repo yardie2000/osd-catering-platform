@@ -2,11 +2,11 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Search, CheckCircle2, AlertTriangle, ExternalLink } from 'lucide-react'
+import { ArrowLeft, Search, CheckCircle2, AlertTriangle, ExternalLink, Wand2, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { useIngredients } from '@/hooks/use-ingredients'
-import { useSupplierAssignment, useSetPreferredAny } from '@/hooks/use-supplier-articles'
+import { useSupplierAssignment, useSetPreferredAny, useAutoAssignSupplierArticles } from '@/hooks/use-supplier-articles'
 import { getErrorMessage } from '@/lib/errors'
 import { resolveSupplierLabel } from '@/lib/supplier-label'
 import { PageHeader } from '@/components/layout/page-header'
@@ -83,6 +83,7 @@ export default function SupplierAssignmentPage() {
   const { data: ingredients = [], isLoading: ingLoading } = useIngredients()
   const { data: groups = [], isLoading: candLoading, isError, error } = useSupplierAssignment()
   const setPreferred = useSetPreferredAny()
+  const autoAssign = useAutoAssignSupplierArticles()
   const [search, setSearch] = useState('')
   const [onlyOpen, setOnlyOpen] = useState(true)
   const [pendingId, setPendingId] = useState<string | null>(null)
@@ -116,6 +117,21 @@ export default function SupplierAssignmentPage() {
     return { total: ingredients.length, withPreferred, openWithCandidates, noCandidates }
   }, [ingredients, byIngredient])
 
+  async function handleAutoAssign() {
+    try {
+      const s = await autoAssign.mutateAsync()
+      if (s.processedArticles === 0) {
+        toast.info('Keine offenen Lieferantenartikel — alles bereits zugeordnet.')
+      } else {
+        toast.success(
+          `Auto-Zuordnung: ${s.linked} verknüpft, ${s.review} zur Prüfung, ${s.createdIngredients} neue Zutat(en)`,
+        )
+      }
+    } catch (e) {
+      toast.error(getErrorMessage(e))
+    }
+  }
+
   async function handlePick(ingredientId: string, mappingId: string | null) {
     setPendingId(ingredientId)
     try {
@@ -136,9 +152,14 @@ export default function SupplierAssignmentPage() {
         title="Lieferanten-Zuordnung"
         description="Je Zutat den bevorzugten Lieferantenartikel (EK) aus den Kandidaten wählen"
         actions={
-          <Button asChild variant="outline" size="sm">
-            <Link href="/master-data/ingredients"><ArrowLeft className="h-4 w-4" /> Zutaten</Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={handleAutoAssign} disabled={autoAssign.isPending} size="sm">
+              {autoAssign.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />} Auto-Zuordnung
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/master-data/ingredients"><ArrowLeft className="h-4 w-4" /> Zutaten</Link>
+            </Button>
+          </div>
         }
       />
       <div className="space-y-4 p-4 sm:p-6 lg:p-8">

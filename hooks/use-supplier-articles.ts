@@ -107,3 +107,19 @@ export function useCreateSupplier() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['suppliers'] }),
   })
 }
+
+/**
+ * Auto-Zuordnung aller offenen Lieferantenartikel zu Zutaten (Teil 8).
+ * Legt fehlende Zutaten an, markiert mehrdeutige Treffer als Review.
+ */
+export function useAutoAssignSupplierArticles() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => supplierArticlesService.autoAssignUnmapped(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: SUPPLIER_ASSIGNMENT_KEY })
+      queryClient.invalidateQueries({ queryKey: PREFERRED_SUPPLIERS_KEY })
+      queryClient.invalidateQueries({ queryKey: INGREDIENTS_KEY })
+    },
+  })
+}
