@@ -10,6 +10,12 @@ import type {
 type RecipeListOptions = {
   search?: string
   scalable?: boolean
+  /**
+   * Archivierte Rezepte (z. B. nach PDF-Reklassifizierung zu Zutaten umgewandelt)
+   * sind standardmäßig ausgeblendet, damit sie nicht mehr im Rezept-Katalog oder
+   * in Rezept-Pickern erscheinen. Mit true zum gezielten Anzeigen einbeziehen.
+   */
+  includeArchived?: boolean
 }
 
 export const recipesService = {
@@ -26,6 +32,10 @@ export const recipesService = {
 
     if (options?.scalable !== undefined) {
       query = query.eq('scalable', options.scalable)
+    }
+
+    if (!options?.includeArchived) {
+      query = query.neq('recipe_status', 'archived')
     }
 
     const { data, error } = await query

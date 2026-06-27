@@ -5,7 +5,7 @@ import type { RecipeInsert, RecipeUpdate } from '@/types'
 
 export const RECIPES_KEY = ['recipes'] as const
 
-export function useRecipes(options?: { search?: string; scalable?: boolean }) {
+export function useRecipes(options?: { search?: string; scalable?: boolean; includeArchived?: boolean }) {
   return useQuery({
     queryKey: [...RECIPES_KEY, options],
     queryFn: () => recipesService.getAll(options),
