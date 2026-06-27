@@ -3,7 +3,12 @@ import type {
   Position, PositionInsert, PositionUpdate, PositionWithComponents, PositionComponentInsert,
 } from '@/types'
 
-export type PositionListRow = Position & { usageCount: number; componentCount: number }
+export type PositionListRow = Position & {
+  usageCount: number
+  componentCount: number
+  recipeCount: number
+  ingredientCount: number
+}
 
 const COMPONENTS_SELECT = `
   components:position_components(
@@ -15,11 +20,13 @@ const COMPONENTS_SELECT = `
 `
 
 export const positionsService = {
-  // List with usage (# menus) + component counts via embedded count.
+  // List with usage (# menus) + component breakdown (recipe vs. ingredient).
+  // Embeds the component target columns so the Produktionsmodus can show
+  // Status-Badges (hat Rezept? / hat Zutat? / vollständig?) ohne Detail-Load.
   async getAll(search?: string): Promise<PositionListRow[]> {
     let query = supabase
       .from('positions')
-      .select('*, menu_positions(count), position_components(count)')
+      .select('*, menu_positions(count), position_components(recipe_id, ingredient_id)')
       .order('name', { ascending: true })
 
     if (search?.trim()) {
@@ -32,12 +39,15 @@ export const positionsService = {
     return (data ?? []).map((p) => {
       const { menu_positions, position_components, ...rest } = p as Position & {
         menu_positions: { count: number }[]
-        position_components: { count: number }[]
+        position_components: { recipe_id: string | null; ingredient_id: string | null }[]
       }
+      const components = position_components ?? []
       return {
         ...(rest as Position),
         usageCount: menu_positions?.[0]?.count ?? 0,
-        componentCount: position_components?.[0]?.count ?? 0,
+        componentCount: components.length,
+        recipeCount: components.filter((c) => c.recipe_id != null).length,
+        ingredientCount: components.filter((c) => c.ingredient_id != null).length,
       }
     })
   },
