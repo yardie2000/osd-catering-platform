@@ -27,9 +27,10 @@ type FormState = { name: string; dietary: string; default_price: string; notes: 
 const EMPTY: FormState = { name: '', dietary: '', default_price: '', notes: '', allergens: [] }
 
 // ── Batch-Filter (Teil 5) ──────────────────────────────────────
-type FilterKey = 'all' | 'no_components' | 'no_recipe' | 'no_ingredient' | 'single' | 'pdf'
+type FilterKey = 'all' | 'incomplete' | 'no_components' | 'no_recipe' | 'no_ingredient' | 'single' | 'pdf'
 const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'all', label: 'Alle' },
+  { key: 'incomplete', label: 'Bestandteile fehlen (lt. Name)' },
   { key: 'no_components', label: 'Ohne Komponenten' },
   { key: 'no_recipe', label: 'Ohne Rezept' },
   { key: 'no_ingredient', label: 'Ohne Zutaten' },
@@ -40,8 +41,24 @@ const FILTERS: { key: FilterKey; label: string }[] = [
 const isPdf = (p: PositionListRow) =>
   (p.position_code?.startsWith('PDF-') ?? false) || (p.notes?.includes('PDF') ?? false)
 
+// Heuristik: erwartete Bestandteile aus dem Positionsnamen (an „|" und „ – " getrennt),
+// ohne Auswahl-/Variantenmarker. Dient nur als Hinweis auf evtl. unvollständige Positionen.
+const NAME_NOISE = /^(m\/?o|mit|ohne|oder|auch|sommer|winter)\b/i
+function expectedParts(name: string): number {
+  const parts = new Set<string>()
+  for (const seg of name.split('|')) {
+    for (const sub of seg.split(/\s[–-]\s/)) {
+      const t = sub.trim()
+      if (t.length >= 3 && !NAME_NOISE.test(t)) parts.add(t.toLowerCase())
+    }
+  }
+  return Math.max(1, parts.size)
+}
+const isIncomplete = (p: PositionListRow) => p.componentCount < expectedParts(p.name)
+
 function matchesFilter(p: PositionListRow, f: FilterKey): boolean {
   switch (f) {
+    case 'incomplete':    return isIncomplete(p)
     case 'no_components': return p.componentCount === 0
     case 'no_recipe':     return p.recipeCount === 0
     case 'no_ingredient': return p.ingredientCount === 0
@@ -97,9 +114,12 @@ function StatusCell({ p }: { p: PositionListRow }) {
   if (p.componentCount === 0) {
     return <Badge variant="error">Leer</Badge>
   }
+  const incomplete = isIncomplete(p)
   return (
     <div className="flex items-center gap-1.5">
-      <Badge variant="success">Vollständig</Badge>
+      {incomplete
+        ? <Badge variant="warning" title={`Hinterlegt ${p.componentCount}, lt. Name ~${expectedParts(p.name)} Bestandteile`}>Bestandteile?</Badge>
+        : <Badge variant="success">Vollständig</Badge>}
       {p.recipeCount > 0 && (
         <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground" title={`${p.recipeCount} Rezept-Komponente(n)`}>
           <BookOpen className="h-3 w-3" />{p.recipeCount}
@@ -147,7 +167,10 @@ const PositionRow = memo(function PositionRow({
       </TableCell>
       <TableCell><StatusCell p={p} /></TableCell>
       <TableCell className="text-muted-foreground">{p.dietary ?? '—'}</TableCell>
-      <TableCell className="font-medium tabular-nums">{p.componentCount}</TableCell>
+      <TableCell className="tabular-nums" title="Hinterlegte Komponenten / erwartete Bestandteile lt. Name">
+        <span className="font-medium">{p.componentCount}</span>
+        <span className="text-xs text-muted-foreground"> / {expectedParts(p.name)}</span>
+      </TableCell>
       <TableCell>
         {p.usageCount > 0 ? <Badge variant="secondary">{p.usageCount}</Badge> : <span className="text-muted-foreground text-xs">0</span>}
       </TableCell>
@@ -184,8 +207,9 @@ export default function PositionsPage() {
   )
 
   const counts = useMemo(() => {
-    const c: Record<FilterKey, number> = { all: positions.length, no_components: 0, no_recipe: 0, no_ingredient: 0, single: 0, pdf: 0 }
+    const c: Record<FilterKey, number> = { all: positions.length, incomplete: 0, no_components: 0, no_recipe: 0, no_ingredient: 0, single: 0, pdf: 0 }
     for (const p of positions) {
+      if (isIncomplete(p)) c.incomplete++
       if (p.componentCount === 0) c.no_components++
       if (p.recipeCount === 0) c.no_recipe++
       if (p.ingredientCount === 0) c.no_ingredient++
