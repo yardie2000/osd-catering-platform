@@ -3,7 +3,7 @@
 import { Suspense, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Pencil, Trash2, Search, Scale, Eye } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, Scale } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { useRecipes, useDeleteRecipe } from '@/hooks/use-recipes'
@@ -154,7 +154,7 @@ function RecipesInner() {
 
                       <TableCell>
                         <div className="space-y-1">
-                          <p className="font-medium">{recipe.name}</p>
+                          <Link href={`/master-data/recipes/${recipe.id}`} className="font-medium hover:underline">{recipe.name}</Link>
                           {(recipe.needs_review || recipe.recipe_status === 'incomplete') && (
                             <Badge variant="warning" className="text-[10px]">Unvollständig</Badge>
                           )}
@@ -193,13 +193,6 @@ function RecipesInner() {
 
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button asChild variant="outline" size="sm">
-                            <Link href={`/master-data/recipes/${recipe.id}`}>
-                              <Eye className="mr-2 h-4 w-4" />
-                              Ansehen
-                            </Link>
-                          </Button>
-
                           <Button asChild variant="outline" size="sm">
                             <Link href={`/master-data/recipes/${recipe.id}/edit`}>
                               <Pencil className="mr-2 h-4 w-4" />

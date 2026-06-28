@@ -5,6 +5,16 @@ import { INGREDIENTS_KEY } from '@/hooks/use-ingredients'
 export const SUPPLIER_ARTICLES_KEY = ['ingredient-supplier-articles'] as const
 export const PREFERRED_SUPPLIERS_KEY = ['preferred-suppliers'] as const
 export const SUPPLIER_ASSIGNMENT_KEY = ['supplier-assignment'] as const
+export const SUPPLIER_ARTICLE_LIST_KEY = ['supplier-article-list'] as const
+
+/** Liste aller (aktiven) Lieferantenartikel — durchsuchbarer EK-Katalog. */
+export function useSupplierArticleList(search?: string) {
+  return useQuery({
+    queryKey: [...SUPPLIER_ARTICLE_LIST_KEY, { search }],
+    queryFn: () => supplierArticlesService.listArticles(search),
+    staleTime: 5 * 60 * 1000,
+  })
+}
 
 export function useIngredientSupplierArticles(ingredientId: string) {
   return useQuery({

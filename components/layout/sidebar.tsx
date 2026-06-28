@@ -37,6 +37,7 @@ const nav: NavEntry[] = [
       { label: 'Rezepte',     href: '/master-data/recipes',      icon: BookOpen },
       { label: 'Zutaten',     href: '/master-data/ingredients',  icon: Carrot },
       { label: 'Lieferanten', href: '/master-data/ingredients/suppliers', icon: Truck },
+      { label: 'Lieferantenartikel', href: '/master-data/supplier-articles', icon: ShoppingCart },
       { label: 'Einheiten',   href: '/master-data/units',        icon: Ruler },
     ],
   },
