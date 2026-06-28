@@ -171,6 +171,20 @@ describe('full import draft', () => {
     assert.match(draft.events[0].orders[0].originalImportText, /Auftraege: Event A/)
   })
 
+  test('Einzel-Positions-Zeile wird direkt auf die eine Position gematcht', () => {
+    const csv = [
+      '"Produkt";"Langbezeichnung";"Menge";"Einheit";"Aufträge";"Klassifizierung"',
+      "\"Fingerfood Caesar\";\"FingerfoodCaesar´s Salad - Romana Salatherzen / Parmesan / Teriyaki Sauce\";\"50\";\"pax\";\" Event C (50 pax)\";\"Speisen\"",
+      '',
+    ].join('\n')
+    const draft = buildProduktbedarfImportDraft(parseProduktbedarfCsv(csv), CATALOG)
+    const order = draft.events[0].orders[0]
+    assert.equal(order.selectedItems.length, 1)
+    assert.equal(order.selectedItems[0].matchedMenuItemId, 'p-caesar')
+    assert.ok(!order.warnings.some((w) => /Menu muss geprueft/.test(w)))
+    assert.equal(order.status, 'matched')
+  })
+
   test('expected item count mismatch becomes needs_review', () => {
     const rows = parseProduktbedarfCsv(CSV)
     const draft = buildProduktbedarfImportDraft(rows, CATALOG)

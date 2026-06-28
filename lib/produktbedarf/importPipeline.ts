@@ -524,6 +524,22 @@ export function reconstructAddOnItems(langbezeichnung: string, catalog: ImportCa
   return matches
 }
 
+/**
+ * Matcht den Langtext gegen ALLE Positionen des Katalogs (menüübergreifend).
+ * Dient der Erkennung von Einzel-Positions-Zeilen ("Fingerfood Caesar",
+ * "Fingerfood Guildas" …): trifft der Text genau EINE Position, ist es eine
+ * Einzelposition; trifft er mehrere, ist es ein (Voll-)Menü.
+ */
+export function matchAllPositions(langbezeichnung: string, catalog: ImportCatalogMenu[]): SelectedPositionMatch[] {
+  const all = uniqPositions(catalog.flatMap((menu) => menu.positions))
+  return suppressGenericCaesarDuplicates(
+    all
+      .map((position) => matchPositionInText(langbezeichnung, position))
+      .filter((match): match is SelectedPositionMatch => Boolean(match))
+      .sort((a, b) => b.confidence - a.confidence),
+  )
+}
+
 function reconstructRowItems(row: ProduktbedarfRow, menuMatch: MenuMatch, catalog: ImportCatalogMenu[]): SelectedPositionMatch[] {
   if (row.istOptional && !menuMatch.menu) {
     return reconstructAddOnItems(row.langbezeichnung || row.produkt, catalog)
@@ -553,11 +569,11 @@ function fillMissingVariantItems(
   ]
 }
 
-function validateOrder(row: ProduktbedarfRow, order: ProduktbedarfAuftrag, menuMatch: MenuMatch, expectedItemCount: ExpectedItemCountMatch, selectedItems: SelectedPositionMatch[]): string[] {
+function validateOrder(row: ProduktbedarfRow, order: ProduktbedarfAuftrag, menuMatch: MenuMatch, expectedItemCount: ExpectedItemCountMatch, selectedItems: SelectedPositionMatch[], standalone = false): string[] {
   const warnings: string[] = []
   if (!/pax/i.test(row.einheit)) warnings.push(`Einheit ist nicht pax: ${row.einheit || 'leer'}`)
   if (row.mengeFehlt) warnings.push('Keine Anzahl/Packsanzahl/Menge/Quantity/Pax in CSV gefunden')
-  if (!menuMatch.menu && !row.istAddOn) warnings.push('Menu muss geprueft werden')
+  if (!menuMatch.menu && !row.istAddOn && !standalone) warnings.push('Menu muss geprueft werden')
   if (selectedItems.some((item) => item.needsReview)) warnings.push('Mindestens eine Position muss geprueft werden')
   if (expectedItemCount.itemCount != null) {
     if (selectedItems.length < expectedItemCount.itemCount) {
@@ -592,20 +608,30 @@ export function buildProduktbedarfImportDraft(rows: ProduktbedarfRow[], catalog:
       ? { menu: null, confidence: 0, strategy: 'no-match', needsReview: false, warnings: [] }
       : matchMenu(`${productText}\n${row.auftraege}\n${row.klassifizierung}`, catalog)
     const expectedItemCount = row.istAddOn ? { itemCount: null, confidence: 0 } : detectExpectedItemCount(productText)
+
+    // Einzel-Positions-Zeile: keine "X Teile"-Erwartung und der Langtext trifft
+    // genau EINE Katalog-Position → direkt diese Position zuordnen (kein Vollmenü).
+    const standaloneMatches = !row.istAddOn && expectedItemCount.itemCount == null
+      ? matchAllPositions(row.langbezeichnung, catalog)
+      : []
+    const isStandalone = standaloneMatches.length === 1
+
     const selectedItems = row.istAddOn
       ? reconstructAddOnItems(row.langbezeichnung || row.produkt, catalog)
-      : fillMissingVariantItems(
-          reconstructRowItems(row, menuMatch, catalog),
-          expectedItemCount,
-          row.langbezeichnung,
-        )
+      : isStandalone
+        ? standaloneMatches
+        : fillMissingVariantItems(
+            reconstructRowItems(row, menuMatch, catalog),
+            expectedItemCount,
+            row.langbezeichnung,
+          )
 
     for (const auftrag of auftraege) {
       const normalizedEventName = normalizeText(auftrag.eventName)
       const warnings = [
         ...rowWarnings,
-        ...menuMatch.warnings,
-        ...validateOrder(row, auftrag, menuMatch, expectedItemCount, selectedItems),
+        ...(isStandalone || row.istAddOn ? [] : menuMatch.warnings),
+        ...validateOrder(row, auftrag, menuMatch, expectedItemCount, selectedItems, isStandalone),
       ]
       const status: ImportedOrderDraft['status'] = warnings.length > 0 ? 'needs_review' : 'matched'
       const orderDraft: ImportedOrderDraft = {
