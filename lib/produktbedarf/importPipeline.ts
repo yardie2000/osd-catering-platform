@@ -604,35 +604,39 @@ export function buildProduktbedarfImportDraft(rows: ProduktbedarfRow[], catalog:
     const originalImportText = buildOriginalImportText(row)
     // Add-on-Zeilen (MouseClick "Add On …") gehören zu keinem Menü — sie werden
     // direkt gegen die als Add-on markierten Positionen gematcht.
-    const menuMatch: MenuMatch = row.istAddOn
+    const menuMatch: MenuMatch = row.istAddOn || row.keinBedarf
       ? { menu: null, confidence: 0, strategy: 'no-match', needsReview: false, warnings: [] }
       : matchMenu(`${productText}\n${row.auftraege}\n${row.klassifizierung}`, catalog)
-    const expectedItemCount = row.istAddOn ? { itemCount: null, confidence: 0 } : detectExpectedItemCount(productText)
+    const expectedItemCount = row.istAddOn || row.keinBedarf ? { itemCount: null, confidence: 0 } : detectExpectedItemCount(productText)
 
     // Einzel-Positions-Zeile: keine "X Teile"-Erwartung und der Langtext trifft
     // genau EINE Katalog-Position → direkt diese Position zuordnen (kein Vollmenü).
-    const standaloneMatches = !row.istAddOn && expectedItemCount.itemCount == null
+    const standaloneMatches = !row.istAddOn && !row.keinBedarf && expectedItemCount.itemCount == null
       ? matchAllPositions(row.langbezeichnung, catalog)
       : []
     const isStandalone = standaloneMatches.length === 1
 
-    const selectedItems = row.istAddOn
-      ? reconstructAddOnItems(row.langbezeichnung || row.produkt, catalog)
-      : isStandalone
-        ? standaloneMatches
-        : fillMissingVariantItems(
-            reconstructRowItems(row, menuMatch, catalog),
-            expectedItemCount,
-            row.langbezeichnung,
-          )
+    const selectedItems = row.keinBedarf
+      ? []
+      : row.istAddOn
+        ? reconstructAddOnItems(row.langbezeichnung || row.produkt, catalog)
+        : isStandalone
+          ? standaloneMatches
+          : fillMissingVariantItems(
+              reconstructRowItems(row, menuMatch, catalog),
+              expectedItemCount,
+              row.langbezeichnung,
+            )
 
     for (const auftrag of auftraege) {
       const normalizedEventName = normalizeText(auftrag.eventName)
-      const warnings = [
-        ...rowWarnings,
-        ...(isStandalone || row.istAddOn ? [] : menuMatch.warnings),
-        ...validateOrder(row, auftrag, menuMatch, expectedItemCount, selectedItems, isStandalone),
-      ]
+      const warnings = row.keinBedarf
+        ? []
+        : [
+            ...rowWarnings,
+            ...(isStandalone || row.istAddOn ? [] : menuMatch.warnings),
+            ...validateOrder(row, auftrag, menuMatch, expectedItemCount, selectedItems, isStandalone),
+          ]
       const status: ImportedOrderDraft['status'] = warnings.length > 0 ? 'needs_review' : 'matched'
       const orderDraft: ImportedOrderDraft = {
         sourceRowNumber: index + 2,

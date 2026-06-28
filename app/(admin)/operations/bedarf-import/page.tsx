@@ -98,6 +98,11 @@ function countNeedsReview(events: ReviewEvent[]) {
 const isAddOnOrder = (o: ReviewOrder): boolean =>
   /^\s*add\s*[- ]?on\b/i.test(o.product_name) || /^\s*add\s*[- ]?on\b/i.test(o.long_description)
 
+// Service-/Gebühr-/extern-Posten ohne Küchen-Produktionsbedarf (Spiegelbild von
+// parse.detectNoDemand — gleiche Erkennung, damit das UI sie markiert).
+const isNoDemandOrder = (o: ReviewOrder): boolean =>
+  /tellergeld|catering\s*ausl|\bausl[oö]se\b|made by zane|servietten?|mietgeschirr|\bgeschirr\b|\bbesteck\b|\bpfand\b|nutzung von (kleinen )?tellern/i.test(`${o.product_name} ${o.long_description}`)
+
 // Kurzer, lesbarer Positionstext für die Item-Zeile (nicht der ganze Langtext-Blob).
 function shortItemText(item: ReviewItem): string {
   const t = (item.position_name || item.raw_position_text || '').trim()
@@ -469,34 +474,40 @@ export default function BedarfImportPage() {
                       const regularPositions = (menu?.positions ?? []).filter((p) => !p.isAddOn)
                       const addOnPositions = (menu?.positions ?? []).filter((p) => p.isAddOn)
                       const addon = isAddOnOrder(order)
+                      const noDemand = isNoDemandOrder(order)
                       return (
-                        <div key={order.id} className="space-y-3 border-t first:border-t-0 pt-5 first:pt-0">
+                        <div key={order.id} className={`space-y-3 border-t first:border-t-0 pt-5 first:pt-0 ${noDemand ? 'opacity-70' : ''}`}>
                           <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr_10rem]">
                             <div>
                               <p className="text-xs text-muted-foreground">Produkt</p>
                               <p className="text-sm font-medium flex items-center gap-2">
                                 {order.product_name}
                                 {addon && <Badge variant="secondary" className="text-[10px]">Add-on</Badge>}
+                                {noDemand && <Badge variant="outline" className="text-[10px]">Kein Produktionsbedarf</Badge>}
                               </p>
                               <p className="text-xs text-muted-foreground line-clamp-2" title={order.long_description}>
                                 {order.long_description}
                               </p>
                             </div>
                             <div>
-                              <p className="text-xs text-muted-foreground mb-1">{addon ? 'Menü (bei Add-on optional)' : 'Menü'}</p>
-                              <Select value={order.matched_menu_id ?? NO_MENU} onValueChange={(value) => setOrderMenu(order.id, value)}>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Menü wählen" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value={NO_MENU}>Prüfen</SelectItem>
-                                  {catalog.map((catalogMenu) => (
-                                    <SelectItem key={catalogMenu.id} value={catalogMenu.id}>
-                                      {catalogMenu.menu_name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              <p className="text-xs text-muted-foreground mb-1">{noDemand ? 'Menü' : addon ? 'Menü (bei Add-on optional)' : 'Menü'}</p>
+                              {noDemand ? (
+                                <p className="text-sm text-muted-foreground mt-2">— Service/Gebühr/extern, kein Menü</p>
+                              ) : (
+                                <Select value={order.matched_menu_id ?? NO_MENU} onValueChange={(value) => setOrderMenu(order.id, value)}>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Menü wählen" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value={NO_MENU}>Prüfen</SelectItem>
+                                    {catalog.map((catalogMenu) => (
+                                      <SelectItem key={catalogMenu.id} value={catalogMenu.id}>
+                                        {catalogMenu.menu_name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              )}
                             </div>
                             <div>
                               <p className="text-xs text-muted-foreground mb-1" title="Anzahl Gäste/Personen dieses Auftrags (aus dem Aufträge-Feld)">Pax (Gäste) *</p>
@@ -522,6 +533,7 @@ export default function BedarfImportPage() {
                             />
                           </div>
 
+                          {!noDemand && (<>
                           <div className="flex flex-wrap items-center gap-2">
                             <div className="flex items-center gap-2">
                               <span className="text-xs text-muted-foreground" title="Erwartete Auswahl-Anzahl bei Auswahl-Menüs (z. B. „6 Teile“). Leer = ganzes Menü / Buffet (alle Positionen).">Auswahl-Anzahl (z. B. 6 Teile)</span>
@@ -621,6 +633,7 @@ export default function BedarfImportPage() {
                               </TableBody>
                             </Table>
                           </div>
+                          </>)}
                         </div>
                       )
                     })}

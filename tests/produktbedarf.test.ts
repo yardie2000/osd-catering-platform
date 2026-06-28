@@ -3,7 +3,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { parseProduktbedarfCsv, tokenizeDelimited, detectAddOn } from '@/lib/produktbedarf/parse'
+import { parseProduktbedarfCsv, tokenizeDelimited, detectAddOn, detectNoDemand } from '@/lib/produktbedarf/parse'
 import { normalizeName, scoreMatch, suggestMatch } from '@/lib/produktbedarf/match'
 
 // Representative subset of a real export: semicolon-delimited, quoted, with a
@@ -58,6 +58,15 @@ test('detectAddOn erkennt MouseClick-Add-on-Zeilen am Namen', () => {
   assert.equal(detectAddOn('Add On Brisket', 'Add OnBrisket / Kimchi'), true)
   assert.equal(detectAddOn('Fingerfood 2025 6 Teile', 'Caesar Salad …'), false)
   assert.equal(detectAddOn('BBQ Basic Menü 2026', ''), false)
+})
+
+test('detectNoDemand erkennt Service-/Gebühr-/extern-Posten', () => {
+  assert.equal(detectNoDemand('Tellergeld Torte Fingerfood', 'Tellergeld (Torte und Fingerfood) Nutzung von kleinen Tellern …'), true)
+  assert.equal(detectNoDemand('Cateringauslöse Speisen', 'Cateringauslöse Speisen (tagsüber)'), true)
+  assert.equal(detectNoDemand('Hochzeitstorte ab 30 Pax', 'Hochzeitstorte made by ZANE'), true)
+  assert.equal(detectNoDemand('Dunkle Schokoladen-Cake-Pops', 'Cake-Pops made by ZANE auch vegan'), true)
+  assert.equal(detectNoDemand('Fingerfood Caesar', "Caesar's Salad / Parmesan"), false)
+  assert.equal(detectNoDemand('Kidsessen Chicken Nuggets', 'Chicken Nuggets mit Pommes und Ketchup'), false)
 })
 
 test('preserves non-pax units', () => {
