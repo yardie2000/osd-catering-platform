@@ -95,6 +95,16 @@ function countNeedsReview(events: ReviewEvent[]) {
   return { orders, items }
 }
 
+const isAddOnOrder = (o: ReviewOrder): boolean =>
+  /^\s*add\s*[- ]?on\b/i.test(o.product_name) || /^\s*add\s*[- ]?on\b/i.test(o.long_description)
+
+// Kurzer, lesbarer Positionstext für die Item-Zeile (nicht der ganze Langtext-Blob).
+function shortItemText(item: ReviewItem): string {
+  const t = (item.position_name || item.raw_position_text || '').trim()
+  if (!t) return '—'
+  return t.length > 70 ? `${t.slice(0, 70)}…` : t
+}
+
 function displayOriginalImportText(order: ReviewOrder): string {
   return order.original_import_text || [
     `Produkt: ${order.product_name}`,
@@ -458,18 +468,22 @@ export default function BedarfImportPage() {
                       const menu = order.matched_menu_id ? menuById.get(order.matched_menu_id) : null
                       const regularPositions = (menu?.positions ?? []).filter((p) => !p.isAddOn)
                       const addOnPositions = (menu?.positions ?? []).filter((p) => p.isAddOn)
+                      const addon = isAddOnOrder(order)
                       return (
                         <div key={order.id} className="space-y-3 border-t first:border-t-0 pt-5 first:pt-0">
                           <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr_10rem]">
                             <div>
                               <p className="text-xs text-muted-foreground">Produkt</p>
-                              <p className="text-sm font-medium">{order.product_name}</p>
+                              <p className="text-sm font-medium flex items-center gap-2">
+                                {order.product_name}
+                                {addon && <Badge variant="secondary" className="text-[10px]">Add-on</Badge>}
+                              </p>
                               <p className="text-xs text-muted-foreground line-clamp-2" title={order.long_description}>
                                 {order.long_description}
                               </p>
                             </div>
                             <div>
-                              <p className="text-xs text-muted-foreground mb-1">Menü</p>
+                              <p className="text-xs text-muted-foreground mb-1">{addon ? 'Menü (bei Add-on optional)' : 'Menü'}</p>
                               <Select value={order.matched_menu_id ?? NO_MENU} onValueChange={(value) => setOrderMenu(order.id, value)}>
                                 <SelectTrigger>
                                   <SelectValue placeholder="Menü wählen" />
@@ -485,7 +499,7 @@ export default function BedarfImportPage() {
                               </Select>
                             </div>
                             <div>
-                              <p className="text-xs text-muted-foreground mb-1">Pax / Anzahl *</p>
+                              <p className="text-xs text-muted-foreground mb-1" title="Anzahl Gäste/Personen dieses Auftrags (aus dem Aufträge-Feld)">Pax (Gäste) *</p>
                               <Input
                                 type="number"
                                 min={1}
@@ -510,13 +524,13 @@ export default function BedarfImportPage() {
 
                           <div className="flex flex-wrap items-center gap-2">
                             <div className="flex items-center gap-2">
-                              <span className="text-xs text-muted-foreground">Soll-Positionen</span>
+                              <span className="text-xs text-muted-foreground" title="Erwartete Auswahl-Anzahl bei Auswahl-Menüs (z. B. „6 Teile“). Leer = ganzes Menü / Buffet (alle Positionen).">Auswahl-Anzahl (z. B. 6 Teile)</span>
                               <Input
                                 type="number"
                                 min={0}
-                                className="w-24"
+                                className="w-28"
                                 value={order.expected_item_count ?? ''}
-                                placeholder="-"
+                                placeholder="ganzes Menü"
                                 onChange={(event) => {
                                   const value = Number(event.target.value)
                                   setOrderField(order.id, { expected_item_count: Number.isFinite(value) && value > 0 ? value : null })
@@ -540,7 +554,7 @@ export default function BedarfImportPage() {
                             <Table>
                               <TableHeader>
                                 <TableRow>
-                                  <TableHead className="min-w-[16rem]">Original-Positionstext</TableHead>
+                                  <TableHead className="min-w-[16rem]">Erkannter Text</TableHead>
                                   <TableHead className="min-w-[18rem]">Zugeordnete Position</TableHead>
                                   <TableHead className="w-28">Confidence</TableHead>
                                   <TableHead className="w-16" />
@@ -554,8 +568,8 @@ export default function BedarfImportPage() {
                                   return (
                                   <TableRow key={`${order.id}-${index}`} className={item.needs_review ? 'bg-amber-50/50 dark:bg-amber-950/20' : undefined}>
                                     <TableCell>
-                                      <p className="text-xs text-muted-foreground whitespace-pre-wrap">
-                                        {item.original_text || item.raw_position_text || 'Manuell hinzugefuegt'}
+                                      <p className="text-xs text-muted-foreground" title={item.original_text || item.raw_position_text || ''}>
+                                        {shortItemText(item)}
                                       </p>
                                     </TableCell>
                                     <TableCell>
