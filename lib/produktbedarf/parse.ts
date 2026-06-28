@@ -30,11 +30,24 @@ export type ProduktbedarfRow = {
   istOptional: boolean
   /** True when the product is a MouseClick add-on row (Produkt/Langbezeichnung beginnt mit "Add On"). */
   istAddOn: boolean
+  /** True für Zeilen ohne eigenen Produktionsbedarf (Service/Gebühr/extern: Tellergeld, Auslöse, "made by ZANE" …). */
+  keinBedarf: boolean
 }
 
 /** Erkennt MouseClick-Add-on-Zeilen am Namen ("Add On ..."). */
 export function detectAddOn(produkt: string, langbezeichnung: string): boolean {
   return /^\s*add\s*[- ]?on\b/i.test(produkt) || /^\s*add\s*[- ]?on\b/i.test(langbezeichnung)
+}
+
+/**
+ * Erkennt Zeilen ohne eigenen Küchen-Produktionsbedarf: Service-/Gebühr-/
+ * Equipment-Posten (Tellergeld, Cateringauslöse, Servietten, Mietgeschirr,
+ * Pfand) und extern zugekaufte Posten ("made by ZANE", z. B. Hochzeitstorte,
+ * Cake-Pops). Diese sollen nicht im Review als Produktionspositionen erscheinen.
+ */
+export function detectNoDemand(produkt: string, langbezeichnung: string): boolean {
+  const t = `${produkt} ${langbezeichnung}`
+  return /tellergeld|catering\s*ausl|\bausl[oö]se\b|made by zane|servietten?|mietgeschirr|\bgeschirr\b|\bbesteck\b|\bpfand\b|nutzung von (kleinen )?tellern/i.test(t)
 }
 
 const HTML_ENTITIES: Record<string, string> = {
@@ -198,6 +211,7 @@ export function parseProduktbedarfCsv(text: string): ProduktbedarfRow[] {
       klassifizierung,
       istOptional: /optional/i.test(klassifizierung),
       istAddOn: detectAddOn(produkt, langbezeichnung),
+      keinBedarf: detectNoDemand(produkt, langbezeichnung),
     })
   }
 
