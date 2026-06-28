@@ -13,10 +13,10 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: 'OSD Catering Platform V5.2.1',
+    default: 'OSD Catering Platform V5.3.0',
     template: '%s · OSD Catering Platform',
   },
-  description: 'OSD Catering Operations Platform V5.2.1 - Menu, Recipe, Purchasing & Production',
+  description: 'OSD Catering Operations Platform V5.3.0 - Menu, Recipe, Purchasing & Production',
   robots: { index: false, follow: false },
 }
 
