@@ -93,6 +93,14 @@ export const menusService = {
     if (error) throw error
   },
 
+  // Add-on-Kennzeichnung je Menü-Position (menu_positions.is_add_on ist die
+  // menü-spezifische Wahrheit — dieselbe Position kann in einem Menü Add-on,
+  // in einem anderen reguläre Position sein).
+  async setMenuPositionAddOn(id: string, isAddOn: boolean): Promise<void> {
+    const { error } = await supabase.from('menu_positions').update({ is_add_on: isAddOn }).eq('id', id)
+    if (error) throw error
+  },
+
   async reorderMenuPositions(items: { id: string; sort_order: number }[]): Promise<void> {
     for (const { id, sort_order } of items) {
       const { error } = await supabase.from('menu_positions').update({ sort_order }).eq('id', id)
