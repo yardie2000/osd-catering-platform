@@ -24,7 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 const NO_MENU = '__no_menu__'
 const NO_POSITION = '__no_position__'
@@ -456,6 +456,8 @@ export default function BedarfImportPage() {
                   <CardContent className="space-y-6">
                     {event.orders.map((order) => {
                       const menu = order.matched_menu_id ? menuById.get(order.matched_menu_id) : null
+                      const regularPositions = (menu?.positions ?? []).filter((p) => !p.isAddOn)
+                      const addOnPositions = (menu?.positions ?? []).filter((p) => p.isAddOn)
                       return (
                         <div key={order.id} className="space-y-3 border-t first:border-t-0 pt-5 first:pt-0">
                           <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr_10rem]">
@@ -545,7 +547,11 @@ export default function BedarfImportPage() {
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
-                                {order.selected_items.map((item, index) => (
+                                {order.selected_items.map((item, index) => {
+                                  const matchedPos = item.matched_menu_item_id
+                                    ? (menu?.positions ?? []).find((p) => p.id === item.matched_menu_item_id)
+                                    : null
+                                  return (
                                   <TableRow key={`${order.id}-${index}`} className={item.needs_review ? 'bg-amber-50/50 dark:bg-amber-950/20' : undefined}>
                                     <TableCell>
                                       <p className="text-xs text-muted-foreground whitespace-pre-wrap">
@@ -553,23 +559,37 @@ export default function BedarfImportPage() {
                                       </p>
                                     </TableCell>
                                     <TableCell>
-                                      <Select
-                                        value={item.matched_menu_item_id ?? NO_POSITION}
-                                        onValueChange={(value) => selectPosition(order.id, index, value)}
-                                        disabled={!menu}
-                                      >
-                                        <SelectTrigger>
-                                          <SelectValue placeholder="Position wählen" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value={NO_POSITION}>Nicht erkannt</SelectItem>
-                                          {(menu?.positions ?? []).map((position) => (
-                                            <SelectItem key={position.id} value={position.id}>
-                                              {position.name}
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
+                                      <div className="flex items-center gap-2">
+                                        <Select
+                                          value={item.matched_menu_item_id ?? NO_POSITION}
+                                          onValueChange={(value) => selectPosition(order.id, index, value)}
+                                          disabled={!menu}
+                                        >
+                                          <SelectTrigger>
+                                            <SelectValue placeholder="Position wählen" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value={NO_POSITION}>Nicht erkannt</SelectItem>
+                                            {regularPositions.length > 0 && (
+                                              <SelectGroup>
+                                                <SelectLabel>Positionen</SelectLabel>
+                                                {regularPositions.map((position) => (
+                                                  <SelectItem key={position.id} value={position.id}>{position.name}</SelectItem>
+                                                ))}
+                                              </SelectGroup>
+                                            )}
+                                            {addOnPositions.length > 0 && (
+                                              <SelectGroup>
+                                                <SelectLabel className="text-primary">Add-ons (separat wählbar)</SelectLabel>
+                                                {addOnPositions.map((position) => (
+                                                  <SelectItem key={position.id} value={position.id}>{position.name}</SelectItem>
+                                                ))}
+                                              </SelectGroup>
+                                            )}
+                                          </SelectContent>
+                                        </Select>
+                                        {matchedPos?.isAddOn && <Badge variant="secondary" className="shrink-0 text-[10px]">Add-on</Badge>}
+                                      </div>
                                     </TableCell>
                                     <TableCell>
                                       <Badge variant={item.needs_review ? 'warning' : 'secondary'} className="text-[10px]">
@@ -582,7 +602,8 @@ export default function BedarfImportPage() {
                                       </Button>
                                     </TableCell>
                                   </TableRow>
-                                ))}
+                                  )
+                                })}
                               </TableBody>
                             </Table>
                           </div>
