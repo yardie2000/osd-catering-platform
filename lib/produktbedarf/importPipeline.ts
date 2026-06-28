@@ -557,7 +557,7 @@ function validateOrder(row: ProduktbedarfRow, order: ProduktbedarfAuftrag, menuM
   const warnings: string[] = []
   if (!/pax/i.test(row.einheit)) warnings.push(`Einheit ist nicht pax: ${row.einheit || 'leer'}`)
   if (row.mengeFehlt) warnings.push('Keine Anzahl/Packsanzahl/Menge/Quantity/Pax in CSV gefunden')
-  if (!menuMatch.menu) warnings.push('Menu muss geprueft werden')
+  if (!menuMatch.menu && !row.istAddOn) warnings.push('Menu muss geprueft werden')
   if (selectedItems.some((item) => item.needsReview)) warnings.push('Mindestens eine Position muss geprueft werden')
   if (expectedItemCount.itemCount != null) {
     if (selectedItems.length < expectedItemCount.itemCount) {
@@ -586,13 +586,19 @@ export function buildProduktbedarfImportDraft(rows: ProduktbedarfRow[], catalog:
 
     const productText = `${row.produkt} ${row.langbezeichnung}`.trim()
     const originalImportText = buildOriginalImportText(row)
-    const menuMatch = matchMenu(`${productText}\n${row.auftraege}\n${row.klassifizierung}`, catalog)
-    const expectedItemCount = detectExpectedItemCount(productText)
-    const selectedItems = fillMissingVariantItems(
-      reconstructRowItems(row, menuMatch, catalog),
-      expectedItemCount,
-      row.langbezeichnung,
-    )
+    // Add-on-Zeilen (MouseClick "Add On …") gehören zu keinem Menü — sie werden
+    // direkt gegen die als Add-on markierten Positionen gematcht.
+    const menuMatch: MenuMatch = row.istAddOn
+      ? { menu: null, confidence: 0, strategy: 'no-match', needsReview: false, warnings: [] }
+      : matchMenu(`${productText}\n${row.auftraege}\n${row.klassifizierung}`, catalog)
+    const expectedItemCount = row.istAddOn ? { itemCount: null, confidence: 0 } : detectExpectedItemCount(productText)
+    const selectedItems = row.istAddOn
+      ? reconstructAddOnItems(row.langbezeichnung || row.produkt, catalog)
+      : fillMissingVariantItems(
+          reconstructRowItems(row, menuMatch, catalog),
+          expectedItemCount,
+          row.langbezeichnung,
+        )
 
     for (const auftrag of auftraege) {
       const normalizedEventName = normalizeText(auftrag.eventName)

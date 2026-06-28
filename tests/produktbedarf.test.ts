@@ -3,7 +3,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { parseProduktbedarfCsv, tokenizeDelimited } from '@/lib/produktbedarf/parse'
+import { parseProduktbedarfCsv, tokenizeDelimited, detectAddOn } from '@/lib/produktbedarf/parse'
 import { normalizeName, scoreMatch, suggestMatch } from '@/lib/produktbedarf/match'
 
 // Representative subset of a real export: semicolon-delimited, quoted, with a
@@ -51,6 +51,13 @@ test('flags optional/add-on lines and zero demand', () => {
   assert.ok(trinkgeld)
   assert.equal(trinkgeld!.menge, 0)
   assert.equal(trinkgeld!.istOptional, true)
+})
+
+test('detectAddOn erkennt MouseClick-Add-on-Zeilen am Namen', () => {
+  assert.equal(detectAddOn('Add On Burrata Tomate', 'Add OnTomatensalat / Burrata'), true)
+  assert.equal(detectAddOn('Add On Brisket', 'Add OnBrisket / Kimchi'), true)
+  assert.equal(detectAddOn('Fingerfood 2025 6 Teile', 'Caesar Salad …'), false)
+  assert.equal(detectAddOn('BBQ Basic Menü 2026', ''), false)
 })
 
 test('preserves non-pax units', () => {

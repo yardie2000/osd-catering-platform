@@ -28,6 +28,13 @@ export type ProduktbedarfRow = {
   klassifizierung: string
   /** True when the product is an optional/add-on line ("Optional zubuchbar"). */
   istOptional: boolean
+  /** True when the product is a MouseClick add-on row (Produkt/Langbezeichnung beginnt mit "Add On"). */
+  istAddOn: boolean
+}
+
+/** Erkennt MouseClick-Add-on-Zeilen am Namen ("Add On ..."). */
+export function detectAddOn(produkt: string, langbezeichnung: string): boolean {
+  return /^\s*add\s*[- ]?on\b/i.test(produkt) || /^\s*add\s*[- ]?on\b/i.test(langbezeichnung)
 }
 
 const HTML_ENTITIES: Record<string, string> = {
@@ -178,9 +185,10 @@ export function parseProduktbedarfCsv(text: string): ProduktbedarfRow[] {
       }))
       .find((candidate) => candidate.value != null && candidate.value > 0) ?? null
 
+    const langbezeichnung = iLang >= 0 ? clean(cells[iLang] ?? '') : ''
     rows.push({
       produkt,
-      langbezeichnung: iLang >= 0 ? clean(cells[iLang] ?? '') : '',
+      langbezeichnung,
       menge: quantity?.value ?? 0,
       mengenQuelle: quantity?.source ?? null,
       mengeFehlt: !quantity,
@@ -189,6 +197,7 @@ export function parseProduktbedarfCsv(text: string): ProduktbedarfRow[] {
       auftragCount,
       klassifizierung,
       istOptional: /optional/i.test(klassifizierung),
+      istAddOn: detectAddOn(produkt, langbezeichnung),
     })
   }
 
