@@ -93,6 +93,15 @@ export function useSetMenuPositionPrice(menuId: string) {
   })
 }
 
+export function useSetMenuPositionAddOn(menuId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, isAddOn }: { id: string; isAddOn: boolean }) =>
+      menusService.setMenuPositionAddOn(id, isAddOn),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [...MENUS_KEY, menuId, 'positions'] }),
+  })
+}
+
 export function useReorderMenuPositions(menuId: string) {
   const qc = useQueryClient()
   return useMutation({

@@ -8,7 +8,7 @@ import { toast } from 'sonner'
 import { getErrorMessage } from '@/lib/errors'
 import {
   useMenuPositions, useAddPositionToMenu, useRemoveMenuPosition,
-  useSetMenuPositionPrice, useReorderMenuPositions,
+  useSetMenuPositionPrice, useSetMenuPositionAddOn, useReorderMenuPositions,
 } from '@/hooks/use-menus'
 import { useCreatePosition } from '@/hooks/use-positions'
 import { PositionPicker } from '@/components/master-data/positions/position-picker'
@@ -25,6 +25,7 @@ export function MenuPositionsManager({ menuId }: { menuId: string }) {
   const addPos = useAddPositionToMenu(menuId)
   const removePos = useRemoveMenuPosition(menuId)
   const setPrice = useSetMenuPositionPrice(menuId)
+  const setAddOn = useSetMenuPositionAddOn(menuId)
   const reorder = useReorderMenuPositions(menuId)
   const createPosition = useCreatePosition()
 
@@ -76,6 +77,11 @@ export function MenuPositionsManager({ menuId }: { menuId: string }) {
     catch (e) { toast.error(getErrorMessage(e)) }
   }
 
+  async function handleAddOn(id: string, isAddOn: boolean) {
+    try { await setAddOn.mutateAsync({ id, isAddOn }) }
+    catch (e) { toast.error(getErrorMessage(e)) }
+  }
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-2">
@@ -97,16 +103,17 @@ export function MenuPositionsManager({ menuId }: { menuId: string }) {
               <TableHead>Position</TableHead>
               <TableHead>Ernährung</TableHead>
               <TableHead>Allergene</TableHead>
+              <TableHead className="w-20 text-center">Add-on</TableHead>
               <TableHead className="w-28">Preis (€)</TableHead>
               <TableHead className="w-28 text-right">Aktionen</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Laden…</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Laden…</TableCell></TableRow>
             ) : rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                   <div className="space-y-3">
                     <p>Noch keine Positionen. Vorhandene aus dem Katalog hinzufügen oder neu anlegen.</p>
                     <Button size="sm" onClick={() => setPickerOpen(true)}><Plus className="h-4 w-4" /> Vorhandene Position</Button>
@@ -141,6 +148,16 @@ export function MenuPositionsManager({ menuId }: { menuId: string }) {
                           {pos.allergens.length > 3 && <Badge variant="outline" className="text-[10px] px-1.5">+{pos.allergens.length - 3}</Badge>}
                         </div>
                       ) : <span className="text-muted-foreground">—</span>}
+                    </TableCell>
+                    <TableCell className="align-top text-center">
+                      <input
+                        type="checkbox"
+                        checked={r.is_add_on}
+                        onChange={(e) => handleAddOn(r.id, e.target.checked)}
+                        className="h-4 w-4 cursor-pointer accent-primary"
+                        aria-label={`„${pos?.name ?? 'Position'}" als Add-on kennzeichnen`}
+                        title="Als Add-on in diesem Menü kennzeichnen"
+                      />
                     </TableCell>
                     <TableCell className="align-top">
                       <Input
