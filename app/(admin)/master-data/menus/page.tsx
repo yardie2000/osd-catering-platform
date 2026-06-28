@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ErrorState } from '@/components/ui/state'
-import { Plus, Pencil, Trash2, Search, Eye, Filter } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, Filter } from 'lucide-react'
 import { toast } from 'sonner'
 import { getErrorMessage } from '@/lib/errors'
 import { useForm, Controller } from 'react-hook-form'
@@ -207,7 +207,7 @@ export default function MenusPage() {
                     <TableRow key={menu.id}>
                               <TableCell><Badge variant="outline">{menu.menu_code}</Badge></TableCell>
                       <TableCell className="font-medium">
-                        <div>{menu.menu_name}</div>
+                        <Link href={`/master-data/menus/${menu.id}`} className="hover:underline">{menu.menu_name}</Link>
                         {menu.menu_description && (
                           <div className="text-xs text-muted-foreground mt-1 max-w-[24rem] overflow-hidden text-ellipsis whitespace-nowrap">
                             {menu.menu_description}
@@ -220,9 +220,6 @@ export default function MenusPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
-                          <Link href={`/master-data/menus/${menu.id}`}>
-                            <Button variant="ghost" size="icon" aria-label={`${menu.menu_name} ansehen`}><Eye className="h-4 w-4" /></Button>
-                          </Link>
                           <Button variant="ghost" size="icon" aria-label={`${menu.menu_name} bearbeiten`} onClick={() => setDialog({ edit: menu })}><Pencil className="h-4 w-4" /></Button>
                           <Button variant="ghost" size="icon" aria-label={`${menu.menu_name} löschen`} onClick={() => handleDelete(menu.id, menu.menu_name)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                         </div>

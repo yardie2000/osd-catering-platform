@@ -17,7 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ErrorState, LoadingState, EmptyState } from '@/components/ui/state'
-import { Plus, Pencil, Trash2, Search, Filter, Eye, Truck } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, Filter, Truck } from 'lucide-react'
 import { toast } from 'sonner'
 import { getErrorMessage } from '@/lib/errors'
 import type { IngredientWithUnit } from '@/types'
@@ -71,9 +71,6 @@ const IngredientRow = memo(function IngredientRow({
       </TableCell>
       <TableCell>
         <div className="flex justify-end gap-1">
-          <Button asChild variant="ghost" size="icon" title="Ansehen" aria-label={`${ing.name} ansehen`}>
-            <Link href={`/master-data/ingredients/${ing.id}`}><Eye className="h-3.5 w-3.5" /></Link>
-          </Button>
           <Button variant="ghost" size="icon" title="Bearbeiten" aria-label={`${ing.name} bearbeiten`} onClick={() => onEdit(ing)}><Pencil className="h-4 w-4" /></Button>
           <Button variant="ghost" size="icon" title="Löschen" aria-label={`${ing.name} löschen`} onClick={() => onDelete(ing)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
         </div>

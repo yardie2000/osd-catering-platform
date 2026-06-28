@@ -8,6 +8,18 @@ import type {
   Supplier,
 } from '@/types'
 
+/** Eine Zeile der Lieferantenartikel-Liste (alle je bestellten Artikel). */
+export type SupplierArticleListRow = {
+  id: string
+  articleName: string
+  articleNumber: string | null
+  supplierName: string | null
+  baseUnit: string | null
+  ekPerBaseUnit: number | null
+  currency: string
+  ingredient: { id: string; name: string } | null
+}
+
 /** Ergebnis eines Auto-Zuordnungslaufs (Lieferantenartikel → Zutat). */
 export type AutoAssignSummary = {
   processedArticles: number
@@ -103,6 +115,56 @@ export const supplierArticlesService = {
       .eq('ingredient_id', ingredientId)
       .eq('is_preferred', true)
     if (error) throw error
+  },
+
+  /**
+   * Alle aktiven Lieferantenartikel (EK) als durchsuchbare Liste — der „Katalog
+   * aller je bestellten Artikel" als Quelle für künftige Rezept-/Zutaten-Pflege.
+   * Zeigt je Artikel die ggf. zugeordnete Zutat.
+   */
+  async listArticles(search?: string): Promise<SupplierArticleListRow[]> {
+    let query = supabase
+      .from('supplier_articles')
+      .select(`
+        id, supplier_article_number, clean_article_name_de, ingredient_name_de, raw_article_name,
+        base_unit, ek_price_per_base_unit, currency,
+        supplier:suppliers!supplier_articles_supplier_id_fkey(name),
+        ingredient_supplier_articles(ingredient:ingredients(id, name))
+      `)
+      .eq('is_active', true)
+      .order('clean_article_name_de', { ascending: true, nullsFirst: false })
+
+    if (search?.trim()) {
+      const s = search.trim()
+      query = query.or(`clean_article_name_de.ilike.%${s}%,raw_article_name.ilike.%${s}%,supplier_article_number.ilike.%${s}%`)
+    }
+
+    const { data, error } = await query
+    if (error) throw error
+
+    type Raw = {
+      id: string
+      supplier_article_number: string | null
+      clean_article_name_de: string | null
+      ingredient_name_de: string | null
+      raw_article_name: string | null
+      base_unit: string | null
+      ek_price_per_base_unit: number | null
+      currency: string
+      supplier: { name: string | null } | null
+      ingredient_supplier_articles: { ingredient: { id: string; name: string } | null }[]
+    }
+
+    return ((data ?? []) as unknown as Raw[]).map((r) => ({
+      id: r.id,
+      articleName: r.clean_article_name_de ?? r.ingredient_name_de ?? r.raw_article_name ?? '(ohne Name)',
+      articleNumber: r.supplier_article_number,
+      supplierName: r.supplier?.name ?? null,
+      baseUnit: r.base_unit,
+      ekPerBaseUnit: r.ek_price_per_base_unit,
+      currency: r.currency,
+      ingredient: r.ingredient_supplier_articles?.[0]?.ingredient ?? null,
+    }))
   },
 
   /** Aktive Lieferanten für das Auswahlfeld. */
