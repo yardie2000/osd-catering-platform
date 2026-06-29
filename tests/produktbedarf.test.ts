@@ -119,3 +119,65 @@ test('scoreMatch is higher for the correct candidate', () => {
   const product = 'Fingerfood Caesar FingerfoodCaesar Salad Parmesan'
   assert.ok(scoreMatch(product, MENUS[2].text) > scoreMatch(product, MENUS[0].text))
 })
+
+// ── Produktbedarf → Produktion: Übernahme-Aggregation ──────────
+import {
+  aggregatePromotedItems,
+  resolvePositionSelection,
+  deriveBatchMeta,
+  type PromoteOrderInput,
+} from '@/lib/produktbedarf/promoteToProduction'
+
+const order = (o: Partial<PromoteOrderInput>): PromoteOrderInput => ({
+  matchedMenuId: 'menu-1',
+  eventPax: 50,
+  noDemand: false,
+  selectedPositionIds: [],
+  menuPositionIds: ['p1', 'p2', 'p3'],
+  ...o,
+})
+
+test('resolvePositionSelection: Auswahl bleibt Auswahl', () => {
+  assert.deepEqual(resolvePositionSelection(order({ selectedPositionIds: ['p2', 'p1'] })), ['p1', 'p2'])
+})
+
+test('resolvePositionSelection: Einzelposition (kein Teile-Count) bleibt Auswahl', () => {
+  // Standalone-Zeile: eine gewählte Position, NICHT das ganze Menü.
+  assert.deepEqual(resolvePositionSelection(order({ selectedPositionIds: ['p2'] })), ['p2'])
+})
+
+test('resolvePositionSelection: alle Positionen gewählt = ganzes Menü', () => {
+  assert.deepEqual(resolvePositionSelection(order({ selectedPositionIds: ['p1', 'p2', 'p3'] })), [])
+})
+
+test('resolvePositionSelection: keine Auswahl = ganzes Menü', () => {
+  assert.deepEqual(resolvePositionSelection(order({ selectedPositionIds: [] })), [])
+})
+
+test('aggregatePromotedItems überspringt No-Demand und Menü-lose Zeilen', () => {
+  const result = aggregatePromotedItems([
+    order({ noDemand: true }),
+    order({ matchedMenuId: null }),
+    order({ eventPax: 0 }),
+  ])
+  assert.equal(result.length, 0)
+})
+
+test('aggregatePromotedItems summiert gleiche (Menü + Auswahl), trennt verschiedene', () => {
+  const result = aggregatePromotedItems([
+    order({ eventPax: 50, selectedPositionIds: ['p1', 'p2'] }),
+    order({ eventPax: 30, selectedPositionIds: ['p2', 'p1'] }), // selbe Auswahl → summiert
+    order({ eventPax: 20, selectedPositionIds: ['p2', 'p3'] }), // andere Auswahl → eigene Zeile
+  ])
+  assert.equal(result.length, 2)
+  const merged = result.find((r) => r.positionIds.join(',') === 'p1,p2')
+  assert.equal(merged?.paxCount, 80)
+  const other = result.find((r) => r.positionIds.join(',') === 'p2,p3')
+  assert.equal(other?.paxCount, 20)
+})
+
+test('deriveBatchMeta liest Datumsbereich aus MouseClick-Dateinamen', () => {
+  const meta = deriveBatchMeta('Produktbedarf_2026-07-01bis30.csv')
+  assert.equal(meta.startDate, '2026-07-01')
+  assert.equal(meta.endDate, '2026-07-30')
+})

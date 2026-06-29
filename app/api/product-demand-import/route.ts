@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 import { createServerClient } from '@/lib/supabase/server'
-import { parseProduktbedarfCsv } from '@/lib/produktbedarf/parse'
+import { parseProduktbedarfCsv, detectNoDemand } from '@/lib/produktbedarf/parse'
 import {
   buildProduktbedarfImportDraft,
   type ImportCatalogMenu,
@@ -435,6 +435,17 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ error: 'Pax/Anzahl muss groesser als 0 sein' }, { status: 400 })
       }
       const menu = order.matched_menu_id ? menuById.get(order.matched_menu_id) : null
+      // Service-/Gebühr-/extern-Zeilen (Tellergeld, Mietgeschirr, "made by ZANE" …)
+      // haben keinen Küchen-Produktionsbedarf. Sie brauchen kein Menü und keine
+      // Positionen — sonst blieben sie für immer "needs_review" und Review offen
+      // ginge nie auf 0. Erkennung serverseitig autoritativ über detectNoDemand.
+      const { data: orderRow, error: orderRowError } = await client
+        .from('imported_event_orders')
+        .select('product_name, long_description')
+        .eq('id', order.id)
+        .single()
+      if (orderRowError) throw orderRowError
+      const noDemand = detectNoDemand(orderRow.product_name, orderRow.long_description ?? '')
       const { data: existingItems, error: existingItemsError } = await client
         .from('imported_event_selected_items')
         .select('sort_order, original_text')
@@ -458,12 +469,14 @@ export async function PATCH(req: NextRequest) {
       })
 
       const warnings: string[] = []
-      if (!menu) warnings.push('Menu muss geprueft werden')
-      if (order.expected_item_count != null && selected.length !== order.expected_item_count) {
-        warnings.push(`${order.expected_item_count} Positionen erwartet, aber ${selected.length} Positionen gespeichert`)
-      }
-      if (selected.some((item) => item.needs_review || !item.matched_menu_item_id)) {
-        warnings.push('Mindestens eine Position muss geprueft werden')
+      if (!noDemand) {
+        if (!menu) warnings.push('Menu muss geprueft werden')
+        if (order.expected_item_count != null && selected.length !== order.expected_item_count) {
+          warnings.push(`${order.expected_item_count} Positionen erwartet, aber ${selected.length} Positionen gespeichert`)
+        }
+        if (selected.some((item) => item.needs_review || !item.matched_menu_item_id)) {
+          warnings.push('Mindestens eine Position muss geprueft werden')
+        }
       }
       const status = statusFromWarnings(warnings)
 
