@@ -1,9 +1,11 @@
 'use client'
 
 import { useMemo, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   AlertTriangle,
   CheckCircle2,
+  ChefHat,
   FileUp,
   Plus,
   RefreshCw,
@@ -122,6 +124,7 @@ function displayOriginalImportText(order: ReviewOrder): string {
 }
 
 export default function BedarfImportPage() {
+  const router = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
   const [fileName, setFileName] = useState('')
   const [jobId, setJobId] = useState<string | null>(null)
@@ -129,6 +132,7 @@ export default function BedarfImportPage() {
   const [catalog, setCatalog] = useState<ImportCatalogMenu[]>([])
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [promoting, setPromoting] = useState(false)
 
   const menuById = useMemo(() => new Map(catalog.map((menu) => [menu.id, menu])), [catalog])
   const summary = useMemo(() => {
@@ -369,6 +373,26 @@ export default function BedarfImportPage() {
     }
   }
 
+  async function promote() {
+    if (!jobId) return
+    setPromoting(true)
+    try {
+      const res = await fetch('/api/product-demand-import/promote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'Übernahme fehlgeschlagen')
+      toast.success(`${json.items ?? 0} Produktionspositionen übernommen`)
+      router.push(`/operations/production?batch=${encodeURIComponent(json.batchId)}`)
+    } catch (error) {
+      toast.error(getErrorMessage(error))
+    } finally {
+      setPromoting(false)
+    }
+  }
+
   return (
     <div className="flex flex-col h-full">
       <PageHeader
@@ -428,11 +452,24 @@ export default function BedarfImportPage() {
                   <p className="text-2xl font-semibold text-amber-600">{summary.review.orders + summary.review.items}</p>
                 </div>
                 <div className="ml-auto flex gap-2">
-                  <Button variant="outline" onClick={reload} disabled={!jobId || saving}>
+                  <Button variant="outline" onClick={reload} disabled={!jobId || saving || promoting}>
                     <RefreshCw className="h-4 w-4" /> Aktualisieren
                   </Button>
-                  <Button onClick={saveReview} disabled={!jobId || saving}>
+                  <Button onClick={saveReview} disabled={!jobId || saving || promoting}>
                     <Save className="h-4 w-4" /> {saving ? 'Speichert...' : 'Zuordnung speichern'}
+                  </Button>
+                  <Button
+                    variant="default"
+                    className="bg-emerald-600 hover:bg-emerald-700"
+                    onClick={promote}
+                    disabled={!jobId || saving || promoting || summary.review.orders + summary.review.items > 0}
+                    title={
+                      summary.review.orders + summary.review.items > 0
+                        ? 'Erst alle offenen Reviews schließen'
+                        : 'Geprüften Import in einen Produktionslauf übernehmen'
+                    }
+                  >
+                    <ChefHat className="h-4 w-4" /> {promoting ? 'Übernehme...' : 'In Produktion übernehmen'}
                   </Button>
                 </div>
               </CardContent>

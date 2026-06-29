@@ -58,6 +58,10 @@ export type CalcMenuItemComponent = {
 
 export type CalcMenuItem = {
   id:        string
+  // Katalog-Positions-ID (NICHT die menu_positions-Join-ID `id`). Wird zum
+  // Filtern auf die im Bedarf-Import gewählten Positionen gebraucht. Optional,
+  // damit Legacy-/Test-Literale ohne Positionsbezug gültig bleiben.
+  position_id?: string | null
   name:      string
   recipe_id: string | null
   recipe:    CalcRecipe | null

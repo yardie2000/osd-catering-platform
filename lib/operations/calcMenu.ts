@@ -26,11 +26,12 @@ export function buildCalcMenus(raw: RawCalcMenu[]): CalcMenu[] {
     const menu_items: CalcMenuItem[] = [...(m.menu_positions ?? [])]
       .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
       .map((mp) => ({
-        id:         mp.id,
-        name:       mp.position?.name ?? '',
-        recipe_id:  null,
-        recipe:     null,
-        components: mp.position?.components ?? [],
+        id:          mp.id,
+        position_id: mp.position?.id ?? null,
+        name:        mp.position?.name ?? '',
+        recipe_id:   null,
+        recipe:      null,
+        components:  mp.position?.components ?? [],
       }))
     return { id: m.id, menu_code: m.menu_code, menu_name: m.menu_name, menu_items }
   })
