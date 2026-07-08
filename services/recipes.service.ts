@@ -64,6 +64,28 @@ export const recipesService = {
     return data as RecipeWithDetails
   },
 
+  // Recipe-Review-Druck: alle nicht-archivierten Rezepte inkl. Zutaten, Einheiten und
+  // Ertragseinheit in einer Abfrage laden (nach Name sortiert). Read-only, verändert nichts.
+  async getAllForReview(): Promise<RecipeWithDetails[]> {
+    const { data, error } = await supabase
+      .from('recipes')
+      .select(`
+        *,
+        yield_unit:units!recipes_yield_unit_id_fkey(*),
+        recipe_ingredients(
+          *,
+          ingredient:ingredients(*),
+          unit:units!recipe_ingredients_unit_id_fkey(*)
+        )
+      `)
+      .neq('recipe_status', 'archived')
+      .order('name', { ascending: true })
+
+    if (error) throw error
+
+    return (data ?? []) as RecipeWithDetails[]
+  },
+
   async getByCode(code: string): Promise<Recipe | null> {
     const { data, error } = await supabase
       .from('recipes')

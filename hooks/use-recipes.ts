@@ -12,6 +12,13 @@ export function useRecipes(options?: { search?: string; scalable?: boolean; incl
   })
 }
 
+export function useRecipeReview() {
+  return useQuery({
+    queryKey: [...RECIPES_KEY, 'review'],
+    queryFn: () => recipesService.getAllForReview(),
+  })
+}
+
 export function useRecipe(id: string) {
   return useQuery({
     queryKey: [...RECIPES_KEY, id],

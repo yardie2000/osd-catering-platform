@@ -1,0 +1,314 @@
+/* ────────────────────────────────────────────────────────────────────────
+   Recipe Review print stylesheet — A4, light theme, kitchen-friendly.
+   Self-contained: does NOT rely on the app's dark design tokens so the
+   document always renders black-on-white on screen and in print.
+   All class names are prefixed `rr-` to avoid collisions.
+   ──────────────────────────────────────────────────────────────────────── */
+
+.rr-doc {
+  --rr-ink: #111111;
+  --rr-muted: #555555;
+  --rr-line: #c9c9c9;
+  --rr-line-strong: #333333;
+  --rr-fill: #f4f4f4;
+  --rr-warn: #8a5a00;
+  --rr-warn-bg: #fff4e0;
+
+  color: var(--rr-ink);
+  background: #ffffff;
+  font-family: 'Inter', -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  font-size: 10.5pt;
+  line-height: 1.4;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* On-screen: show the document as a sheet of paper on a grey desk. */
+.rr-screen-wrap {
+  background: #e9e9ec;
+  min-height: 100dvh;
+  padding: 24px 16px 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.rr-page {
+  width: 210mm;
+  max-width: 100%;
+  background: #ffffff;
+  margin: 0 auto 20px;
+  padding: 16mm 15mm;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.18);
+  box-sizing: border-box;
+}
+
+.rr-doc * {
+  box-sizing: border-box;
+}
+
+/* ── Toolbar (screen only) ──────────────────────────────────────────────── */
+.rr-toolbar {
+  width: 210mm;
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.rr-toolbar-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+.rr-print-btn {
+  appearance: none;
+  border: 1px solid #111;
+  background: #111;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.rr-print-btn:hover { background: #000; }
+.rr-back-link {
+  font-size: 13px;
+  color: #333;
+  text-decoration: underline;
+}
+
+/* ── Typography helpers ─────────────────────────────────────────────────── */
+.rr-h1 { font-size: 24pt; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
+.rr-h2 {
+  font-size: 13pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 2px solid var(--rr-line-strong);
+}
+.rr-muted { color: var(--rr-muted); }
+.rr-small { font-size: 9pt; }
+
+/* ── Cover ──────────────────────────────────────────────────────────────── */
+.rr-cover {
+  min-height: 235mm;
+  display: flex;
+  flex-direction: column;
+}
+.rr-cover-brand {
+  font-size: 11pt;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--rr-muted);
+}
+.rr-cover-rule { height: 3px; background: var(--rr-ink); margin: 10px 0 26px; }
+.rr-cover-center { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+.rr-cover-title { font-size: 34pt; font-weight: 800; line-height: 1.05; margin: 0; }
+.rr-cover-sub { font-size: 14pt; color: var(--rr-muted); margin-top: 10px; }
+
+.rr-cover-meta {
+  margin-top: 34px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 28px;
+  max-width: 120mm;
+}
+.rr-meta-item { border-top: 1px solid var(--rr-line); padding-top: 6px; }
+.rr-meta-label {
+  font-size: 8.5pt; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--rr-muted);
+}
+.rr-meta-value { font-size: 13pt; font-weight: 600; }
+
+.rr-cover-instruction {
+  margin-top: 30px;
+  border: 1px solid var(--rr-line-strong);
+  background: var(--rr-fill);
+  padding: 14px 16px;
+  max-width: 150mm;
+}
+.rr-cover-instruction .rr-instr-label {
+  font-size: 8.5pt; text-transform: uppercase; letter-spacing: 0.08em;
+  font-weight: 700; margin-bottom: 4px;
+}
+
+/* ── Tables (shared) ────────────────────────────────────────────────────── */
+.rr-table { width: 100%; border-collapse: collapse; }
+.rr-table th, .rr-table td {
+  border: 1px solid var(--rr-line);
+  padding: 4px 7px;
+  text-align: left;
+  vertical-align: top;
+}
+.rr-table thead th {
+  background: var(--rr-fill);
+  font-size: 8.5pt;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+  border-color: var(--rr-line-strong);
+}
+.rr-table thead { display: table-header-group; } /* repeat header if a table breaks */
+.rr-num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rr-center { text-align: center; }
+
+/* ── Index table ────────────────────────────────────────────────────────── */
+.rr-index-table td { font-size: 9.5pt; }
+.rr-index-table tbody tr:nth-child(even) td { background: #fafafa; }
+.rr-idx-no { width: 26px; text-align: right; color: var(--rr-muted); }
+.rr-idx-status { white-space: nowrap; }
+.rr-idx-notes-col { min-width: 34mm; }
+
+.rr-status-ok { color: #1f6f2e; font-weight: 600; }
+.rr-status-warn { color: var(--rr-warn); font-weight: 600; }
+
+/* ── Recipe block ───────────────────────────────────────────────────────── */
+.rr-recipe {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  padding-top: 6px;
+  margin-bottom: 14px;
+}
+.rr-recipe + .rr-recipe { border-top: 1px dashed var(--rr-line); padding-top: 12px; }
+
+.rr-recipe-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.rr-recipe-name { font-size: 14pt; font-weight: 700; margin: 0; }
+.rr-recipe-code {
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  font-size: 9pt; color: var(--rr-muted); white-space: nowrap;
+}
+.rr-recipe-index-no { color: var(--rr-muted); font-weight: 400; }
+
+.rr-attention {
+  margin-top: 6px;
+  border-left: 3px solid var(--rr-warn);
+  background: var(--rr-warn-bg);
+  color: var(--rr-warn);
+  padding: 4px 9px;
+  font-size: 9pt;
+}
+.rr-attention b { text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* Meta grid: label/value pairs, compact. */
+.rr-meta-grid {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px 12px;
+}
+.rr-field { border-top: 1px solid var(--rr-line); padding-top: 3px; min-height: 30px; }
+.rr-field-label {
+  font-size: 7.8pt; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--rr-muted);
+}
+.rr-field-value { font-size: 10pt; }
+.rr-field-blank { color: #999; } /* dotted fill line for chef-entered fields */
+.rr-blankline {
+  display: inline-block;
+  min-width: 60%;
+  border-bottom: 1px dotted #999;
+  height: 12px;
+}
+.rr-field-wide { grid-column: span 2; }
+
+.rr-prose { margin-top: 8px; }
+.rr-prose-block { margin-top: 6px; }
+.rr-prose-label {
+  font-size: 7.8pt; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--rr-muted); font-weight: 700;
+}
+.rr-prose-text { white-space: pre-wrap; font-size: 9.5pt; margin-top: 1px; }
+
+/* Ingredients table */
+.rr-ing-wrap { margin-top: 10px; }
+.rr-ing-table th, .rr-ing-table td { font-size: 9.5pt; }
+.rr-ing-table .rr-col-ing { width: 34%; }
+.rr-ing-table .rr-col-qty { width: 12%; }
+.rr-ing-table .rr-col-unit { width: 10%; }
+.rr-ing-table .rr-col-notes { width: 20%; }
+.rr-ing-table .rr-col-correction { width: 24%; background: #fcfcfc; }
+.rr-ing-empty { color: var(--rr-muted); font-style: italic; }
+/* Empty write-in rows for the chef — taller cells give room for handwriting. */
+.rr-ing-blank td { height: 20px; }
+.rr-allergen-line { margin-top: 6px; font-size: 9pt; }
+.rr-allergen-line b { text-transform: uppercase; letter-spacing: 0.04em; font-size: 8pt; }
+
+/* Correction area */
+.rr-correction {
+  margin-top: 10px;
+  border: 1px solid var(--rr-line-strong);
+  padding: 8px 10px;
+}
+.rr-correction-title {
+  font-size: 8pt; text-transform: uppercase; letter-spacing: 0.06em;
+  font-weight: 700; margin-bottom: 6px;
+}
+.rr-checks {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px 14px;
+  font-size: 9pt;
+}
+.rr-check { white-space: nowrap; }
+.rr-box {
+  display: inline-block; width: 10px; height: 10px;
+  border: 1px solid var(--rr-ink); margin: 0 3px 0 8px;
+  vertical-align: -1px;
+}
+.rr-box:first-child { margin-left: 0; }
+.rr-corr-notes { margin-top: 8px; font-size: 9pt; }
+.rr-corr-fill {
+  border-bottom: 1px solid var(--rr-line-strong);
+  height: 16px; margin-top: 2px;
+}
+.rr-corr-foot {
+  margin-top: 10px; display: flex; gap: 26px; font-size: 9pt;
+}
+.rr-corr-foot .rr-sig { flex: 1; }
+.rr-corr-foot .rr-sig-line {
+  border-bottom: 1px solid var(--rr-ink); height: 15px; margin-top: 2px;
+}
+
+/* ── Section page breaks ────────────────────────────────────────────────── */
+.rr-break-after { break-after: page; page-break-after: always; }
+
+/* ────────────────────────────────────────────────────────────────────────
+   PRINT MEDIA
+   ──────────────────────────────────────────────────────────────────────── */
+@media print {
+  @page { size: A4; margin: 14mm 13mm; }
+
+  html, body {
+    background: #ffffff !important;
+    margin: 0 !important;
+  }
+
+  .rr-no-print { display: none !important; }
+
+  .rr-screen-wrap {
+    background: #ffffff !important;
+    padding: 0 !important;
+    display: block !important;
+  }
+
+  .rr-page {
+    width: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .rr-cover { min-height: 250mm; }
+}

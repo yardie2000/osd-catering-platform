@@ -3,7 +3,7 @@
 import { Suspense, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Pencil, Trash2, Search, Scale } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, Scale, Printer } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { useRecipes, useDeleteRecipe } from '@/hooks/use-recipes'
@@ -73,12 +73,20 @@ function RecipesInner() {
         title="Rezepte"
         description="Rezeptstammdaten, Basisportionen, Ertrag und Skalierbarkeit verwalten."
         actions={
-          <Button asChild>
-            <Link href="/master-data/recipes/new">
-              <Plus className="mr-2 h-4 w-4" />
-              Neues Rezept
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button asChild variant="outline">
+              <Link href="/print/recipe-review" target="_blank" rel="noopener noreferrer">
+                <Printer className="mr-2 h-4 w-4" />
+                Print Recipe Review
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href="/master-data/recipes/new">
+                <Plus className="mr-2 h-4 w-4" />
+                Neues Rezept
+              </Link>
+            </Button>
+          </div>
         }
       />
 
