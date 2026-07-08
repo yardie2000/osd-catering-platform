@@ -1,12 +1,20 @@
 'use client'
 
 import { useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { Menu } from 'lucide-react'
 import { Sidebar } from './sidebar'
 import { cn } from '@/lib/utils'
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const pathname = usePathname()
+
+  // Druck-/PDF-Ansichten (z. B. /print/recipe-review) rendern ohne App-Chrome:
+  // keine Sidebar, keine mobile Navigationsleiste – nur der reine Seiteninhalt.
+  if (pathname?.startsWith('/print')) {
+    return <>{children}</>
+  }
 
   return (
     <div className="flex min-h-dvh bg-background text-foreground">
