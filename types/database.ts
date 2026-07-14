@@ -163,6 +163,15 @@ export type Database = {
           { foreignKeyName: 'kitchen_batch_items_menu_id_fkey';  columns: ['menu_id'];  referencedRelation: 'menus';           referencedColumns: ['id'] }
         ]
       }
+      kitchen_batch_item_positions: {
+        Row:           KitchenBatchItemPosition
+        Insert:        KitchenBatchItemPositionInsert
+        Update:        KitchenBatchItemPositionUpdate
+        Relationships: [
+          { foreignKeyName: 'kitchen_batch_item_positions_batch_item_id_fkey'; columns: ['batch_item_id']; referencedRelation: 'kitchen_batch_items'; referencedColumns: ['id'] },
+          { foreignKeyName: 'kitchen_batch_item_positions_position_id_fkey';   columns: ['position_id'];   referencedRelation: 'positions';           referencedColumns: ['id'] }
+        ]
+      }
       suppliers: {
         Row:           Supplier
         Insert:        SupplierInsert
@@ -661,24 +670,26 @@ export type ProductionBatchUpdate = Partial<ProductionBatchInsert>
 // ── kitchen_batches (V4.1: single production-planning entity) ──
 
 export type KitchenBatch = {
-  id:              string
-  name:            string
-  description:     string | null
-  start_date:      string | null
-  end_date:        string | null
-  production_date: string | null
-  status:          string
-  created_at:      string
-  updated_at:      string
+  id:                   string
+  name:                 string
+  description:          string | null
+  start_date:           string | null
+  end_date:             string | null
+  production_date:      string | null
+  status:               string
+  source_import_job_id: string | null
+  created_at:           string
+  updated_at:           string
 }
 
 export type KitchenBatchInsert = {
-  name:             string
-  description?:     string | null
-  start_date?:      string | null
-  end_date?:        string | null
-  production_date?: string | null
-  status?:          string
+  name:                  string
+  description?:          string | null
+  start_date?:           string | null
+  end_date?:             string | null
+  production_date?:      string | null
+  status?:               string
+  source_import_job_id?: string | null
 }
 export type KitchenBatchUpdate = Partial<KitchenBatchInsert>
 
@@ -692,9 +703,20 @@ export type KitchenBatchItem = {
 export type KitchenBatchItemInsert = Omit<KitchenBatchItem, 'id'>
 export type KitchenBatchItemUpdate = Partial<KitchenBatchItemInsert>
 
+// Im Bedarf-Import gewählte Positionen eines Batch-Items (leer = ganzes Menü).
+export type KitchenBatchItemPosition = {
+  id:            string
+  batch_item_id: string
+  position_id:   string
+}
+export type KitchenBatchItemPositionInsert = Omit<KitchenBatchItemPosition, 'id'>
+export type KitchenBatchItemPositionUpdate = Partial<KitchenBatchItemPositionInsert>
+
 // batch item joined with its menu (for the batch detail UI)
 export type KitchenBatchItemWithMenu = KitchenBatchItem & {
   menu: { id: string; menu_code: string; menu_name: string } | null
+  // gewählte Positionen (nur bei Import-Items gesetzt; leer/fehlend = ganzes Menü)
+  kitchen_batch_item_positions?: { position_id: string }[]
 }
 
 export type KitchenBatchWithItems = KitchenBatch & {
