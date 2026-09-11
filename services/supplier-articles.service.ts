@@ -301,7 +301,7 @@ export const supplierArticlesService = {
    * Nicht-Lebensmittel (is_food=false) werden nicht zu Zutaten gemacht.
    */
   async autoAssignUnmapped(): Promise<AutoAssignSummary> {
-    const [{ data: ings, error: ingErr }, { data: mapped, error: mapErr }, { data: articles, error: artErr }] =
+    const [{ data: ings, error: ingErr }, { data: mapped, error: mapErr }, { data: articles, error: artErr }, { data: prefRows, error: prefErr }] =
       await Promise.all([
         supabase.from('ingredients').select('id, name, ingredient_code'),
         supabase.from('ingredient_supplier_articles').select('supplier_article_id'),
@@ -309,12 +309,18 @@ export const supplierArticlesService = {
           .from('supplier_articles')
           .select('id, clean_article_name_de, ingredient_name_de, raw_article_name, is_food, is_active')
           .eq('is_active', true),
+        supabase.from('ingredient_supplier_articles').select('ingredient_id').eq('is_preferred', true),
       ])
     if (ingErr) throw ingErr
     if (mapErr) throw mapErr
     if (artErr) throw artErr
+    if (prefErr) throw prefErr
 
     const mappedIds = new Set((mapped ?? []).map((m) => m.supplier_article_id))
+    // Zutaten, die bereits einen bevorzugten Lieferanten haben — nicht überschreiben.
+    // Wird im Lauf ergänzt, damit je Zutat genau ein eindeutiger Treffer bevorzugt wird
+    // (respektiert den Partial-Unique-Index ing_sup_art_one_preferred_uidx).
+    const preferredIngredientIds = new Set((prefRows ?? []).map((p) => p.ingredient_id))
     const codes = new Set((ings ?? []).map((i) => i.ingredient_code))
     const ingredients: MatchableIngredient[] = (ings ?? []).map((i) => ({ id: i.id, name: i.name }))
 
@@ -366,6 +372,12 @@ export const supplierArticlesService = {
         summary.createdIngredients++
       }
 
+      // Eindeutige (nicht zu prüfende) Treffer werden zugleich als bevorzugter
+      // Lieferant gesetzt, sofern die Zutat noch keinen hat. So zeigt die
+      // Zuordnungs-Übersicht direkt nach der Auto-Zuordnung den Lieferanten an,
+      // statt „— keiner —". Mehrdeutige Treffer bleiben offen (manuell bestätigen).
+      const setAsPreferred = !needsReview && ingredientId != null && !preferredIngredientIds.has(ingredientId)
+
       const { error: linkErr } = await supabase
         .from('ingredient_supplier_articles')
         .insert({
@@ -373,13 +385,14 @@ export const supplierArticlesService = {
           supplier_article_id: a.id,
           match_type: matchType,
           match_score: matchScore,
-          is_preferred: false,
+          is_preferred: setAsPreferred,
           needs_review: needsReview,
           review_reason: needsReview ? (decision.reason ?? 'Mehrdeutiger Treffer — bitte bestätigen') : null,
           priority: 100,
         })
       if (linkErr) throw linkErr
 
+      if (setAsPreferred && ingredientId != null) preferredIngredientIds.add(ingredientId)
       mappedIds.add(a.id)
       if (needsReview) summary.review++
       else summary.linked++
