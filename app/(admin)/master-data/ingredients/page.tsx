@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useState } from 'react'
 import Link from 'next/link'
-import { useIngredients, useIngredientCategories, useCreateIngredient, useUpdateIngredient, useDeleteIngredient } from '@/hooks/use-ingredients'
+import { useIngredients, useIngredientCategories, useIngredientRecipeUsage, useCreateIngredient, useUpdateIngredient, useDeleteIngredient } from '@/hooks/use-ingredients'
 import { usePreferredSuppliers } from '@/hooks/use-supplier-articles'
 import { useVirtualRows } from '@/hooks/use-virtual-rows'
 import { PageHeader } from '@/components/layout/page-header'
@@ -27,11 +27,12 @@ const VIRTUALIZE_THRESHOLD = 80
 
 // Memoisierte Zeile: rendert bei Scroll/Filter nur neu, wenn sich ihre Props ändern.
 const IngredientRow = memo(function IngredientRow({
-  ing, supplierLabel, isPreferred, onEdit, onDelete,
+  ing, supplierLabel, isPreferred, recipes, onEdit, onDelete,
 }: {
   ing: IngredientWithUnit
   supplierLabel: string | null
   isPreferred: boolean
+  recipes: { id: string; name: string }[]
   onEdit: (ing: IngredientWithUnit) => void
   onDelete: (ing: IngredientWithUnit) => void
 }) {
@@ -46,8 +47,23 @@ const IngredientRow = memo(function IngredientRow({
         <Link href={`/master-data/ingredients/${ing.id}`} className="hover:underline">{ing.name}</Link>
       </TableCell>
       <TableCell className="text-muted-foreground">{ing.category ?? '—'}</TableCell>
-      <TableCell className="text-muted-foreground">
-        {ing.default_unit ? `${ing.default_unit.name} (${ing.default_unit.unit_code})` : '—'}
+      <TableCell>
+        {recipes.length === 0 ? (
+          <span className="text-muted-foreground text-xs">—</span>
+        ) : (
+          <div className="flex flex-wrap items-center gap-1">
+            {recipes.slice(0, 3).map((r) => (
+              <Link key={r.id} href={`/master-data/recipes/${r.id}`} className="hover:underline">
+                <Badge variant="outline" className="text-[10px] px-1.5 font-normal">{r.name}</Badge>
+              </Link>
+            ))}
+            {recipes.length > 3 && (
+              <span className="text-[10px] text-muted-foreground" title={recipes.map((r) => r.name).join(', ')}>
+                +{recipes.length - 3} weitere
+              </span>
+            )}
+          </div>
+        )}
       </TableCell>
       <TableCell>
         {supplierLabel ? (
@@ -58,16 +74,6 @@ const IngredientRow = memo(function IngredientRow({
         ) : (
           <span className="text-muted-foreground">Fehlt</span>
         )}
-      </TableCell>
-      <TableCell>
-        <div className="flex flex-wrap gap-1">
-          {ing.allergens.length === 0 ? (
-            <span className="text-muted-foreground text-xs">Keine</span>
-          ) : (
-            ing.allergens.slice(0, 3).map((a) => <Badge key={a} variant="warning" className="text-[10px] px-1.5">{a}</Badge>)
-          )}
-          {ing.allergens.length > 3 && <Badge variant="outline" className="text-[10px] px-1.5">+{ing.allergens.length - 3}</Badge>}
-        </div>
       </TableCell>
       <TableCell>
         <div className="flex justify-end gap-1">
@@ -87,6 +93,7 @@ export default function IngredientsPage() {
   const { data: ingredients = [], isLoading, isError, error } = useIngredients({ search, category: categoryFilter === '__all__' ? undefined : categoryFilter })
   const { data: categories = [] } = useIngredientCategories()
   const { data: preferredSuppliers = {} } = usePreferredSuppliers()
+  const { data: recipeUsage = {} } = useIngredientRecipeUsage()
   const createIngredient = useCreateIngredient()
   const updateIngredient = useUpdateIngredient()
   const deleteIngredient = useDeleteIngredient()
@@ -124,7 +131,7 @@ export default function IngredientsPage() {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Zutaten"
-        description="Zutatenstammdaten — Allergene, Kategorien, Lieferantenzuordnung"
+        description="Zutatenstammdaten — Kategorien, Rezepte, Lieferantenzuordnung"
         actions={
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline" size="sm">
@@ -168,25 +175,25 @@ export default function IngredientsPage() {
                       <TableHead>Code</TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>Kategorie</TableHead>
-                      <TableHead>Standardeinheit</TableHead>
+                      <TableHead>Rezepte</TableHead>
                       <TableHead>Lieferant</TableHead>
-                      <TableHead>Allergene</TableHead>
                       <TableHead className="w-28 text-right">Aktionen</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {virtual && win.padTop > 0 && <tr aria-hidden><td colSpan={7} style={{ height: win.padTop, padding: 0 }} /></tr>}
+                    {virtual && win.padTop > 0 && <tr aria-hidden><td colSpan={6} style={{ height: win.padTop, padding: 0 }} /></tr>}
                     {visible.map((ing) => (
                       <IngredientRow
                         key={ing.id}
                         ing={ing}
                         supplierLabel={preferredSuppliers[ing.id] ?? ing.supplier_name ?? null}
                         isPreferred={!!preferredSuppliers[ing.id]}
+                        recipes={recipeUsage[ing.id] ?? []}
                         onEdit={handleEditOpen}
                         onDelete={handleDelete}
                       />
                     ))}
-                    {virtual && win.padBottom > 0 && <tr aria-hidden><td colSpan={7} style={{ height: win.padBottom, padding: 0 }} /></tr>}
+                    {virtual && win.padBottom > 0 && <tr aria-hidden><td colSpan={6} style={{ height: win.padBottom, padding: 0 }} /></tr>}
                   </TableBody>
                 </Table>
               </div>

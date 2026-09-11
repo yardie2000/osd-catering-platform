@@ -92,6 +92,32 @@ export const ingredientsService = {
     if (error) throw error
   },
 
+  /**
+   * Zuordnung Zutat → Rezepte, in denen sie verwendet wird (über recipe_ingredients).
+   * Ein Query, danach client-seitig gruppiert und dedupliziert. Für die Zutatenliste.
+   */
+  async getRecipeUsage(): Promise<Record<string, { id: string; name: string }[]>> {
+    const { data, error } = await supabase
+      .from('recipe_ingredients')
+      .select('ingredient_id, recipe:recipes!recipe_ingredients_recipe_id_fkey(id, name)')
+
+    if (error) throw error
+
+    type Row = { ingredient_id: string; recipe: { id: string; name: string } | null }
+    const map: Record<string, { id: string; name: string }[]> = {}
+    for (const row of (data ?? []) as unknown as Row[]) {
+      if (!row.recipe) continue
+      ;(map[row.ingredient_id] ??= []).push(row.recipe)
+    }
+    for (const key of Object.keys(map)) {
+      const seen = new Set<string>()
+      map[key] = map[key]
+        .filter((r) => (seen.has(r.id) ? false : (seen.add(r.id), true)))
+        .sort((a, b) => a.name.localeCompare(b.name, 'de'))
+    }
+    return map
+  },
+
   async getCategories(): Promise<string[]> {
     const { data, error } = await supabase
       .from('ingredients')
