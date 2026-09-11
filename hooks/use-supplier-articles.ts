@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { supplierArticlesService, type ManualArticleInput } from '@/services/supplier-articles.service'
+import { supplierArticlesService, type ManualArticleInput, type IngredientCandidates } from '@/services/supplier-articles.service'
 import { INGREDIENTS_KEY } from '@/hooks/use-ingredients'
 
 export const SUPPLIER_ARTICLES_KEY = ['ingredient-supplier-articles'] as const
@@ -67,7 +67,26 @@ export function useSetPreferredAny() {
       mappingId
         ? supplierArticlesService.setPreferred(ingredientId, mappingId)
         : supplierArticlesService.clearPreferred(ingredientId),
-    onSuccess: () => {
+    // Optimistisch: der bevorzugte Lieferant erscheint sofort in der Auswahl,
+    // statt für die Dauer von Mutation + Refetch auf „— keiner —" zurückzuspringen.
+    onMutate: async ({ ingredientId, mappingId }) => {
+      await queryClient.cancelQueries({ queryKey: SUPPLIER_ASSIGNMENT_KEY })
+      const previous = queryClient.getQueryData<IngredientCandidates[]>(SUPPLIER_ASSIGNMENT_KEY)
+      if (previous) {
+        const next = previous.map((g) => {
+          if (g.ingredient.id !== ingredientId) return g
+          const mappings = g.mappings.map((m) => ({ ...m, is_preferred: m.id === mappingId }))
+          const preferred = mappingId ? mappings.find((m) => m.id === mappingId) ?? null : null
+          return { ...g, mappings, preferred }
+        })
+        queryClient.setQueryData(SUPPLIER_ASSIGNMENT_KEY, next)
+      }
+      return { previous }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) queryClient.setQueryData(SUPPLIER_ASSIGNMENT_KEY, context.previous)
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: SUPPLIER_ASSIGNMENT_KEY })
       queryClient.invalidateQueries({ queryKey: PREFERRED_SUPPLIERS_KEY })
       queryClient.invalidateQueries({ queryKey: INGREDIENTS_KEY })

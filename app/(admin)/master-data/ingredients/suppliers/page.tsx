@@ -87,6 +87,10 @@ export default function SupplierAssignmentPage() {
   const [search, setSearch] = useState('')
   const [onlyOpen, setOnlyOpen] = useState(true)
   const [pendingId, setPendingId] = useState<string | null>(null)
+  // Zutaten, die gerade in dieser Ansicht zugeordnet wurden: bleiben sichtbar,
+  // auch wenn „Nur offene anzeigen" aktiv ist — so sieht man die Auswahl greifen,
+  // statt dass die Zeile sofort verschwindet.
+  const [justAssigned, setJustAssigned] = useState<Set<string>>(new Set())
 
   const byIngredient = useMemo(() => {
     const m = new Map<string, IngredientCandidates>()
@@ -99,12 +103,12 @@ export default function SupplierAssignmentPage() {
     return ingredients
       .map((ing) => ({ ing, group: byIngredient.get(ing.id) ?? null }))
       .filter(({ ing, group }) => {
-        if (onlyOpen && group?.preferred) return false
+        if (onlyOpen && group?.preferred && !justAssigned.has(ing.id)) return false
         if (!q) return true
         return ing.name.toLowerCase().includes(q) || ing.ingredient_code.toLowerCase().includes(q)
       })
       .sort((a, b) => a.ing.name.localeCompare(b.ing.name, 'de'))
-  }, [ingredients, byIngredient, search, onlyOpen])
+  }, [ingredients, byIngredient, search, onlyOpen, justAssigned])
 
   const stats = useMemo(() => {
     let withPreferred = 0, openWithCandidates = 0, noCandidates = 0
@@ -134,11 +138,24 @@ export default function SupplierAssignmentPage() {
 
   async function handlePick(ingredientId: string, mappingId: string | null) {
     setPendingId(ingredientId)
+    // Zeile in dieser Ansicht sichtbar halten (bzw. bei Aufhebung wieder freigeben).
+    setJustAssigned((prev) => {
+      const next = new Set(prev)
+      if (mappingId) next.add(ingredientId)
+      else next.delete(ingredientId)
+      return next
+    })
     try {
       await setPreferred.mutateAsync({ ingredientId, mappingId })
       toast.success(mappingId ? 'Bevorzugter Lieferant gesetzt' : 'Bevorzugung aufgehoben')
     } catch (e) {
       toast.error(getErrorMessage(e))
+      // Bei Fehler die optimistische Sichtbarkeit zurücknehmen.
+      setJustAssigned((prev) => {
+        const next = new Set(prev)
+        next.delete(ingredientId)
+        return next
+      })
     } finally {
       setPendingId(null)
     }
