@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 
 import { useIngredientCategories } from '@/hooks/use-ingredients'
+import { useSuppliers } from '@/hooks/use-supplier-articles'
 import { useUnits } from '@/hooks/use-units'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -47,6 +48,7 @@ export function IngredientForm({
 }: IngredientFormProps) {
   const { data: units = [] } = useUnits()
   const { data: categories = [] } = useIngredientCategories()
+  const { data: suppliers = [] } = useSuppliers()
   const {
     register,
     handleSubmit,
@@ -124,9 +126,35 @@ export function IngredientForm({
           <p className="text-xs text-muted-foreground mt-1">Die Standardeinheit erscheint hier, wenn die Zutat in Rezepten und im Einkauf verwendet wird.</p>
         </div>
         <div>
-          <label className="text-sm font-medium">Bevorzugter Lieferant / Produkt</label>
-          <Input {...register('supplier_name')} placeholder="Bevorzugter Lieferant oder Produktreferenz" className="mt-1" />
-          <p className="text-xs text-muted-foreground mt-1">Optionaler Standardlieferant oder Produktbezug für den Einkauf dieser Zutat.</p>
+          <label className="text-sm font-medium">Bevorzugter Lieferant</label>
+          <Controller
+            control={control}
+            name="supplier_name"
+            render={({ field }) => {
+              const current = field.value ?? ''
+              const known = suppliers.some((s) => s.name === current)
+              return (
+                <Select
+                  value={current === '' ? '__none__' : current}
+                  onValueChange={(v) => field.onChange(v === '__none__' ? '' : v)}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Lieferant wählen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Kein Lieferant</SelectItem>
+                    {suppliers.map((s) => (
+                      <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
+                    ))}
+                    {current !== '' && !known && (
+                      <SelectItem value={current}>{current} (bestehend)</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              )
+            }}
+          />
+          <p className="text-xs text-muted-foreground mt-1">Standardlieferant für den Einkauf dieser Zutat. Lieferanten werden über „Lieferanten zuordnen“ bzw. den Lieferantenkatalog gepflegt.</p>
         </div>
       </div>
       <div>
