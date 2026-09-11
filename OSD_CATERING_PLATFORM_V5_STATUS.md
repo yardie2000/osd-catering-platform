@@ -1,7 +1,7 @@
-# OSD Catering - V5.2.1 Status & Release Notes
+# OSD Catering - V5.3.1 Status & Release Notes
 
-Stand: 2026-06-26
-App-Version: 5.2.1
+Stand: 2026-09-11
+App-Version: 5.3.1
 Branch: main
 Deployment: GitHub Actions -> GHCR -> Synology Watchtower
 
@@ -10,6 +10,19 @@ Zugehoerige Specs:
 - [V5.2 Produktspezifikation](OSD_CATERING_PLATFORM_V5_2_SPEC.md)
 - [Positionen](OSD_CATERING_PLATFORM_POSITIONEN_SPEC.md)
 - [Komponenten](OSD_CATERING_PLATFORM_KOMPONENTEN_SPEC.md)
+
+## Neu in V5.3
+
+### V5.3.1 (2026-09-11)
+
+- Kuechen-Review-Ruecklauf eingepflegt: fehlende Zutaten aus dem handschriftlichen Review ("Receipe Review", Druck 08.07.2026) in 19 Rezepte uebernommen (+89 recipe_ingredients, +41 Zutaten; Chia Pudding - Chiasamen 100 -> 175 g). Migration `20260910140322_seed_recipe_review_ingredients`. Offen (Rueckfrage Koch): Ceviche, Coleslaw, "Kleiner Salat oder Suppe", Roastbeef-Teller.
+- Selgros-Lieferantenartikel importiert: Lieferant "Selgros" angelegt, 82 Artikel (Artikelnummer, Netto-EK, Gebinde) importiert und Zutaten zugeordnet (40 verknuepft mit bestehenden, 39 neue Zutaten). Migrationen `20260910142833_import_selgros_articles` und `20260910144910_consolidate_grana_into_parmesan` (Grana Padano = Parmesan).
+- Bugfix: virtualisierte Listen (Zutaten, Lieferantenartikel) waren nicht vollstaendig scrollbar — nur die ersten ~28 Zeilen erreichbar. `useVirtualRows` nutzt jetzt eine Callback-Ref (+ ResizeObserver), sodass Scroll-Listener und Hoehenmessung nach dem bedingten Rendern zuverlaessig anhaengen. (PR #29)
+- Betriebshinweis: Das Supabase-Projekt pausiert nach Inaktivitaet automatisch (dann NXDOMAIN, App ohne Daten). Fix: im Supabase-Dashboard "Restore".
+
+### V5.3.0 (2026-07-08)
+
+- Rezept-Review Druck-/PDF-Ansicht (`/print/recipe-review`), Hybrid-Layout: Deckblatt -> Index -> Rezeptbloecke mit Chef-Korrekturfeldern und leeren Zeilen fuer fehlende Zutaten. (PR #26)
 
 ## 1. Release-Ziel V5.2
 
