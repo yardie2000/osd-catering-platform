@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 export type VirtualWindow = {
   /** erster zu rendernder Index (inkl.) */
@@ -47,24 +47,31 @@ export function useVirtualRows({
   count: number
   rowHeight: number
   overscan?: number
-}): { scrollRef: React.RefObject<HTMLDivElement>; window: VirtualWindow } {
-  const scrollRef = useRef<HTMLDivElement>(null)
+}): { scrollRef: (el: HTMLDivElement | null) => void; window: VirtualWindow } {
+  // Callback-Ref statt useRef: der Scroll-Container wird erst nach dem Laden
+  // (bedingtes Rendern) gemountet. Ein Effekt mit leeren Deps würde ihn dann
+  // verpassen und Scroll-Listener/Messung nie anhängen — die Liste ließe sich
+  // nicht scrollen. Über den State-Node läuft der Effekt beim Mounten erneut.
+  const [node, setNode] = useState<HTMLDivElement | null>(null)
+  const scrollRef = useCallback((el: HTMLDivElement | null) => setNode(el), [])
   const [scrollTop, setScrollTop] = useState(0)
   const [viewport, setViewport] = useState(640)
 
   useEffect(() => {
-    const el = scrollRef.current
-    if (!el) return
-    const onScroll = () => setScrollTop(el.scrollTop)
-    const measure = () => setViewport(el.clientHeight || 640)
+    if (!node) return
+    const onScroll = () => setScrollTop(node.scrollTop)
+    const measure = () => setViewport(node.clientHeight || 640)
     measure()
-    el.addEventListener('scroll', onScroll, { passive: true })
+    node.addEventListener('scroll', onScroll, { passive: true })
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null
+    ro?.observe(node)
     window.addEventListener('resize', measure)
     return () => {
-      el.removeEventListener('scroll', onScroll)
+      node.removeEventListener('scroll', onScroll)
       window.removeEventListener('resize', measure)
+      ro?.disconnect()
     }
-  }, [])
+  }, [node])
 
   return { scrollRef, window: computeWindow(scrollTop, viewport, rowHeight, count, overscan) }
 }
