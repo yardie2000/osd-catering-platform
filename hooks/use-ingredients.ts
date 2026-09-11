@@ -20,6 +20,15 @@ export function useIngredient(id: string) {
   })
 }
 
+/** Zuordnung Zutat → verwendende Rezepte (für die Rezept-Spalte der Zutatenliste). */
+export function useIngredientRecipeUsage() {
+  return useQuery({
+    queryKey: [...INGREDIENTS_KEY, 'recipe-usage'],
+    queryFn: () => ingredientsService.getRecipeUsage(),
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
 export function useIngredientCategories() {
   return useQuery({
     queryKey: [...INGREDIENTS_KEY, 'categories'],
